@@ -52,18 +52,32 @@ add_filter('rest_authentication_errors', function($result) {
 add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
 
 function vlozit_script_do_zapati_administrace() {
-  <script type="text/javascript">
-    var supportBoxChatId = 2781;
-    var supportBoxChatSecret = 'ba9d4c68795805e1987db16bc7f3b1ae';
-    var supportBoxChatVariables = {
-        email: 'client@email.tld',
-        fullName: 'John Doe',
-        phone: '123456789',
-        customerId: 12345
-    };
-</script>
-<script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>
+    $povolene_domeny = [
+        'smart-websites.cz'
+    ];
+
+    $aktualni_domena = $_SERVER['HTTP_HOST'];
+
+    if (!in_array($aktualni_domena, $povolene_domeny)) {
+        return;
+    }
+
+    ?>
+    <script type="text/javascript">
+        var supportBoxChatId = 2781;
+        var supportBoxChatSecret = 'ba9d4c68795805e1987db16bc7f3b1ae';
+        var supportBoxChatVariables = {
+            email: 'client@email.tld',
+            fullName: 'John Doe',
+            phone: '123456789',
+            customerId: 12345
+        };
+    </script>
+    <script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>
+    <?php
 }
+
+add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
 
 function hide_specific_admin_menu_items() {
     if (!is_admin()) {
