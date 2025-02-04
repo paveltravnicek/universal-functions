@@ -25,10 +25,7 @@ add_action('all_admin_notices', function() {
             }
         }
         if ($updates_needed) {
-            echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px 20px 20px 0px; font-size: 16px;">
-        <strong>Váš redakční systém nebo některé z jeho součástí nejsou aktuální.</strong> 
-        <br>Obraťte se prosím na <a href="https://smart-websites.cz/kontakt/" target="_blank" style="color: #721C23; text-decoration: underline;">správce Vašich webových stránek</a>.
-    </div>';
+            echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px 20px 20px 0px; font-size: 16px;"><p><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací.</strong>  </p><p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím. Máte několik možností, jak to zařídit:</p><ul><li><strong>Nechte to na nás:</strong> Objednejte si naši službu <a href="https://smart-websites.cz/levne-webove-stranky/sprava-webovych-stranek/" target="_blank" style="color:#AF2279;">Správa webu</a> a my se o aktualizace a bezpečí vašeho webu postaráme kompletně za vás. Získáte tak bezstarostný provoz a vždy aktuální systém.</li><li><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  Po aktualizaci doporučujeme důkladně otestovat funkčnost webu.</li></ul><p><strong>Již máte Správu webu?</strong><br>V tom případě o potřebných aktualizacích již víme a pracujeme na jejich co nejrychlejší implementaci. Děkujeme za trpělivost.</p><p>V případě jakýchkoliv dotazů se <a href="https://smart-websites.cz/kontakt/" target="_blank" style="color:#AF2279;">neváhejte na nás obrátit</a>.</p></div>';
         }
     }
 });
