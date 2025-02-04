@@ -52,7 +52,6 @@ add_filter('rest_authentication_errors', function($result) {
 add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
 
 function vlozit_script_do_zapati_administrace() {
-  ?>
   <script type="text/javascript">
     var supportBoxChatId = 2781;
     var supportBoxChatSecret = 'ba9d4c68795805e1987db16bc7f3b1ae';
@@ -64,7 +63,6 @@ function vlozit_script_do_zapati_administrace() {
     };
 </script>
 <script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>
-  <?php
 }
 
 function hide_specific_admin_menu_items() {
