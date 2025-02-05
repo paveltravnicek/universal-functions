@@ -4,20 +4,22 @@ if (!defined('DISALLOW_FILE_EDIT')) {
     define('DISALLOW_FILE_EDIT', true);
 }
 
-add_action('init', function() {
-    remove_action('wp_head', 'wp_generator');
-    remove_action('wp_head', 'rsd_link');
-    remove_action('wp_head', 'wlwmanifest_link');
-    remove_action('wp_head', 'wp_oembed_add_discovery_links');
-    remove_action('wp_head', 'wp_shortlink_wp_head');
-    add_filter('emoji_svg_url', '__return_false');
+add_action('plugins_loaded', function() {
+    add_action('init', function() {
+        remove_action('wp_head', 'wp_generator');
+        remove_action('wp_head', 'rsd_link');
+        remove_action('wp_head', 'wlwmanifest_link');
+        remove_action('wp_head', 'wp_oembed_add_discovery_links');
+        remove_action('wp_head', 'wp_shortlink_wp_head');
+        add_filter('emoji_svg_url', '__return_false');
 
-    add_filter('auto_update_core', '__return_false'); 
-    add_filter('auto_update_plugin', '__return_false'); 
-    add_filter('auto_update_theme', '__return_false'); 
+        add_filter('auto_update_core', '__return_false'); 
+        add_filter('auto_update_plugin', '__return_false'); 
+        add_filter('auto_update_theme', '__return_false'); 
+    });
 });
 
-add_action('init', function() {
+add_action('plugins_loaded', function() {
     add_action('admin_notices', function() {
         $current_screen = get_current_screen();
         if ($current_screen->base !== 'dashboard') {
@@ -59,7 +61,7 @@ add_filter('rest_authentication_errors', function($result) {
     return $result;
 });
 
-add_action('init', function() {
+add_action('plugins_loaded', function() {
     add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
 });
 
@@ -81,7 +83,7 @@ function vlozit_script_do_zapati_administrace() {
         . '<script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>';
 }
 
-add_action('init', function() {
+add_action('plugins_loaded', function() {
     add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
 });
 
@@ -105,7 +107,7 @@ add_filter('user_has_cap', function($allcaps, $caps, $args) {
     return $allcaps;
 }, 10, 3);
 
-add_action('init', function() {
+add_action('plugins_loaded', function() {
     add_action('admin_footer', function() {
         $current_user = wp_get_current_user();
         if ($current_user->user_login === 'paveltravnicek') {
