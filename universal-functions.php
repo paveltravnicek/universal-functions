@@ -43,7 +43,7 @@ add_action('admin_notices', function() {
                         <a href="https://smart-websites.cz/levne-webove-stranky/sprava-webovych-stranek/" target="_blank" style="color:#AF2279;">Správa webu</a> 
                         a my se o aktualizace a bezpečí vašeho webu postaráme kompletně za vás. Získáte tak bezstarostný provoz a vždy aktuální systém.
                     </li>
-                    <li style="font-size: 16px;><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  
+                    <li style="font-size: 16px;"><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  
                         Po aktualizaci doporučujeme důkladně otestovat funkčnost webu.
                     </li>
                 </ul>
