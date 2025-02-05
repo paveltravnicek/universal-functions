@@ -13,19 +13,45 @@ add_filter('auto_update_core', '__return_false');
 add_filter('auto_update_plugin', '__return_false'); 
 add_filter('auto_update_theme', '__return_false'); 
 
-add_action('all_admin_notices', function() {
+add_action('admin_notices', function() {
+    $current_screen = get_current_screen();
+    if ($current_screen->base !== 'dashboard') {
+        return;
+    }
+
     $updates = get_site_transient('update_plugins');
     if (!empty($updates->response)) {
-        $ignore_plugin = 'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php';
+        $ignore_plugins = [
+            'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
+            'wordpress-seo-premium/wp-seo-premium.php'
+        ];
+
         $updates_needed = false;
         foreach ($updates->response as $plugin_file => $plugin_data) {
-            if ($plugin_file !== $ignore_plugin) {
+            if (!in_array($plugin_file, $ignore_plugins)) {
                 $updates_needed = true;
                 break;
             }
         }
+
         if ($updates_needed) {
-            echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px 20px 20px 0px; font-size: 16px;"><p><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací.</strong>  </p><p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím. Máte několik možností, jak to zařídit:</p><ul><li><strong>Nechte to na nás:</strong> Objednejte si naši službu <a href="https://smart-websites.cz/levne-webove-stranky/sprava-webovych-stranek/" target="_blank" style="color:#AF2279;">Správa webu</a> a my se o aktualizace a bezpečí vašeho webu postaráme kompletně za vás. Získáte tak bezstarostný provoz a vždy aktuální systém.</li><li><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  Po aktualizaci doporučujeme důkladně otestovat funkčnost webu.</li></ul><p><strong>Již máte Správu webu?</strong><br>V tom případě o potřebných aktualizacích již víme a pracujeme na jejich co nejrychlejší implementaci. Děkujeme za trpělivost.</p><p>V případě jakýchkoliv dotazů se <a href="https://smart-websites.cz/kontakt/" target="_blank" style="color:#AF2279;">neváhejte na nás obrátit</a>.</p></div>';
+            echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px 20px 20px 0px; font-size: 16px;">
+                <p><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací.</strong></p>
+                <p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím. Máte několik možností, jak to zařídit:</p>
+                <ul>
+                    <li style="font-size: 16px;"><strong>Nechte to na nás:</strong> Objednejte si naši službu 
+                        <a href="https://smart-websites.cz/levne-webove-stranky/sprava-webovych-stranek/" target="_blank" style="color:#AF2279;">Správa webu</a> 
+                        a my se o aktualizace a bezpečí vašeho webu postaráme kompletně za vás. Získáte tak bezstarostný provoz a vždy aktuální systém.
+                    </li>
+                    <li style="font-size: 16px;><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  
+                        Po aktualizaci doporučujeme důkladně otestovat funkčnost webu.
+                    </li>
+                </ul>
+                <p><strong>Již máte Správu webu?</strong><br>V tom případě o potřebných aktualizacích již víme a pracujeme na jejich co nejrychlejší implementaci. Děkujeme za trpělivost.</p>
+                <p>V případě jakýchkoliv dotazů se 
+                    <a href="https://smart-websites.cz/kontakt/" target="_blank" style="color:#AF2279;">neváhejte na nás obrátit</a>.
+                </p>
+            </div>';
         }
     }
 });
@@ -144,7 +170,5 @@ function skryt_radek_akci_pro_chranene_pluginy() {
 }
 
 add_action('admin_footer', 'skryt_radek_akci_pro_chranene_pluginy');
-
-
 
 ?>
