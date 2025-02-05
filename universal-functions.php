@@ -78,20 +78,24 @@ if (!function_exists('vlozit_script_do_zapati_administrace')) {
             . '<script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>';
     }
 }
-add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
+add_action('init', function() {
+    add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
+});
 
 add_action('init', function() {
     add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
 });
 
-function hide_specific_admin_menu_items() {
-    if (!is_admin()) {
-        return;
-    }
-    $current_user = wp_get_current_user();
-    if ($current_user->user_login !== 'paveltravnicek') {
-        remove_menu_page('branding');
-        remove_menu_page('wp-defender');
+if (!function_exists('hide_specific_admin_menu_items')) {
+    function hide_specific_admin_menu_items() {
+        if (!is_admin()) {
+            return;
+        }
+        $current_user = wp_get_current_user();
+        if ($current_user->user_login !== 'paveltravnicek') {
+            remove_menu_page('branding');
+            remove_menu_page('wp-defender');
+        }
     }
 }
 
@@ -117,5 +121,10 @@ add_action('init', function() {
             . '}});});</script>';
     });
 });
+
+// Ladící logování k identifikaci zdroje chyby
+add_action('init', function() {
+    error_log('DEBUG: Akce init byla zavolána.');
+}, 1);
 
 ?>
