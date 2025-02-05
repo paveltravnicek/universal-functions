@@ -24,7 +24,8 @@ add_action('admin_notices', function() {
         $ignore_plugins = [
             'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
             'wordpress-seo-premium/wp-seo-premium.php',
-            'ultimate-elementor/ultimate-elementor.php'
+            'ultimate-elementor/ultimate-elementor.php',
+            'modern-events-calendar/mec.php'
         ];
 
         $updates_needed = false;
