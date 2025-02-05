@@ -147,10 +147,14 @@ function skryt_radek_akci_pro_chranene_pluginy() {
                 
                 if (pluginName && chranenePluginy.includes(pluginName)) {
                     let rowActions = tr.querySelector(".row-actions");
-                    
                     if (rowActions) {
-                        rowActions.querySelectorAll("a").forEach(link => {
-                            if (!link.innerText.includes("Aktualizovat")) {
+                        rowActions.style.display = "none";
+                    }
+
+                    let updateMessage = tr.querySelector(".update-message.notice");
+                    if (updateMessage) {
+                        updateMessage.querySelectorAll("a").forEach(link => {
+                            if (!link.innerText.includes("aktualizovat nyní")) {
                                 link.style.display = "none";
                             }
                         });
@@ -163,5 +167,6 @@ function skryt_radek_akci_pro_chranene_pluginy() {
 }
 
 add_action('admin_footer', 'skryt_radek_akci_pro_chranene_pluginy');
+
 
 ?>
