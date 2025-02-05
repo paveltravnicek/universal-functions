@@ -147,8 +147,13 @@ function skryt_radek_akci_pro_chranene_pluginy() {
                 
                 if (pluginName && chranenePluginy.includes(pluginName)) {
                     let rowActions = tr.querySelector(".row-actions");
+                    
                     if (rowActions) {
-                        rowActions.style.display = "none";
+                        rowActions.querySelectorAll("a").forEach(link => {
+                            if (!link.innerText.includes("Aktualizovat")) {
+                                link.style.display = "none";
+                            }
+                        });
                     }
                 }
             });
