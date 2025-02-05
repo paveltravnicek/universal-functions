@@ -23,7 +23,8 @@ add_action('admin_notices', function() {
     if (!empty($updates->response)) {
         $ignore_plugins = [
             'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
-            'wordpress-seo-premium/wp-seo-premium.php'
+            'wordpress-seo-premium/wp-seo-premium.php',
+            'ultimate-elementor/ultimate-elementor.php'
         ];
 
         $updates_needed = false;
