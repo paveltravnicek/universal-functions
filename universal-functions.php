@@ -1,5 +1,7 @@
 <?php
 
+add_filter('login_display_language_dropdown', '__return_false');
+
 add_action('admin_notices', function() {
     $current_screen = get_current_screen();
     if ($current_screen->base !== 'dashboard') {
