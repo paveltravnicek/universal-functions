@@ -66,8 +66,6 @@ add_filter('rest_authentication_errors', function($result) {
     return $result;
 });
 
-add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
-
 function vlozit_script_do_zapati_administrace() {
     $povolene_domeny = [
         'smart-websites.cz',
