@@ -17,37 +17,39 @@ add_action('init', function() {
     add_filter('auto_update_theme', '__return_false'); 
 });
 
-add_action('admin_notices', function() {
-    $current_screen = get_current_screen();
-    if ($current_screen->base !== 'dashboard') {
-        return;
-    }
+add_action('init', function() {
+    add_action('admin_notices', function() {
+        $current_screen = get_current_screen();
+        if ($current_screen->base !== 'dashboard') {
+            return;
+        }
 
-    $updates = get_site_transient('update_plugins');
-    if (!empty($updates->response)) {
-        $ignore_plugins = [
-            'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
-            'wordpress-seo-premium/wp-seo-premium.php',
-            'ultimate-elementor/ultimate-elementor.php',
-            'bdthemes-element-pack/bdthemes-element-pack.php',
-            'modern-events-calendar/mec.php'
-        ];
+        $updates = get_site_transient('update_plugins');
+        if (!empty($updates->response)) {
+            $ignore_plugins = [
+                'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
+                'wordpress-seo-premium/wp-seo-premium.php',
+                'ultimate-elementor/ultimate-elementor.php',
+                'bdthemes-element-pack/bdthemes-element-pack.php',
+                'modern-events-calendar/mec.php'
+            ];
 
-        $updates_needed = false;
-        foreach ($updates->response as $plugin_file => $plugin_data) {
-            if (!in_array($plugin_file, $ignore_plugins)) {
-                $updates_needed = true;
-                break;
+            $updates_needed = false;
+            foreach ($updates->response as $plugin_file => $plugin_data) {
+                if (!in_array($plugin_file, $ignore_plugins)) {
+                    $updates_needed = true;
+                    break;
+                }
+            }
+
+            if ($updates_needed) {
+                echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px; font-size: 16px;">'
+                    . '<h2><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací</strong></h2>'
+                    . '<p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím...</p>'
+                    . '</div>';
             }
         }
-
-        if ($updates_needed) {
-            echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px; font-size: 16px;">'
-                . '<h2><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací</strong></h2>'
-                . '<p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím...</p>'
-                . '</div>';
-        }
-    }
+    });
 });
 
 add_filter('rest_authentication_errors', function($result) {
@@ -55,6 +57,10 @@ add_filter('rest_authentication_errors', function($result) {
         return new WP_Error('rest_forbidden', 'REST API is restricted to authenticated users.', array('status' => 401));
     }
     return $result;
+});
+
+add_action('init', function() {
+    add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
 });
 
 function vlozit_script_do_zapati_administrace() {
@@ -74,7 +80,10 @@ function vlozit_script_do_zapati_administrace() {
         . '</script>'
         . '<script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>';
 }
-add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
+
+add_action('init', function() {
+    add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
+});
 
 function hide_specific_admin_menu_items() {
     if (!is_admin()) {
@@ -86,7 +95,6 @@ function hide_specific_admin_menu_items() {
         remove_menu_page('wp-defender');
     }
 }
-add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
 
 add_filter('user_has_cap', function($allcaps, $caps, $args) {
     if (isset($args[2]) && $args[2] == get_user_by('login', 'paveltravnicek')->ID) {
@@ -97,16 +105,18 @@ add_filter('user_has_cap', function($allcaps, $caps, $args) {
     return $allcaps;
 }, 10, 3);
 
-add_action('admin_footer', function() {
-    $current_user = wp_get_current_user();
-    if ($current_user->user_login === 'paveltravnicek') {
-        return;
-    }
-    echo '<script>document.addEventListener("DOMContentLoaded", function() {'
-        . 'document.querySelectorAll("#the-list tr").forEach(tr => {'
-        . 'if (["Branda Pro", "Defender Pro"].includes(tr.querySelector(".plugin-title strong")?.innerText.trim())) {'
-        . 'tr.querySelector(".row-actions")?.style.display = "none";'
-        . '}});});</script>';
+add_action('init', function() {
+    add_action('admin_footer', function() {
+        $current_user = wp_get_current_user();
+        if ($current_user->user_login === 'paveltravnicek') {
+            return;
+        }
+        echo '<script>document.addEventListener("DOMContentLoaded", function() {'
+            . 'document.querySelectorAll("#the-list tr").forEach(tr => {'
+            . 'if (["Branda Pro", "Defender Pro"].includes(tr.querySelector(".plugin-title strong")?.innerText.trim())) {'
+            . 'tr.querySelector(".row-actions")?.style.display = "none";'
+            . '}});});</script>';
+    });
 });
 
 ?>
