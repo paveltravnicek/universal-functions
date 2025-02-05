@@ -1,18 +1,5 @@
 <?php
 
-define('DISALLOW_FILE_EDIT', true);
-
-remove_action('wp_head', 'wp_generator');
-remove_action('wp_head', 'rsd_link');
-remove_action('wp_head', 'wlwmanifest_link');
-remove_action('wp_head', 'wp_oembed_add_discovery_links');
-remove_action('wp_head', 'wp_shortlink_wp_head');
-add_filter('emoji_svg_url', '__return_false');
-
-add_filter('auto_update_core', '__return_false'); 
-add_filter('auto_update_plugin', '__return_false'); 
-add_filter('auto_update_theme', '__return_false'); 
-
 add_action('admin_notices', function() {
     $current_screen = get_current_screen();
     if ($current_screen->base !== 'dashboard') {
@@ -160,6 +147,5 @@ function skryt_radek_akci_pro_chranene_pluginy() {
 }
 
 add_action('admin_footer', 'skryt_radek_akci_pro_chranene_pluginy');
-
 
 ?>
