@@ -110,28 +110,41 @@ function hide_paveltravnicek_from_users_list($query) {
 }
 add_action('pre_user_query', 'hide_paveltravnicek_from_users_list');
 
-function omezit_spravu_pluginu($actions, $plugin_file) {
-    $chranene_plugins = [
-        'wp-defender/wp-defender.php',
-        'ultimate-branding/ultimate-branding.php',
-        'wpmudev-updates/update-notifications.php'
-    ];
-
+function skryt_radek_akci_pro_chranene_pluginy() {
     $current_user = wp_get_current_user();
-
-    if ($current_user->user_login !== 'paveltravnicek' && in_array($plugin_file, $chranene_plugins)) {
-        if (isset($actions['upgrade'])) {
-            return ['upgrade' => $actions['upgrade']];
-        } else {
-            return []; 
-        }
+    
+    // Povolit plný přístup pouze pro "paveltravnicek"
+    if ($current_user->user_login === 'paveltravnicek') {
+        return;
     }
 
-    return $actions;
+    ?>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Seznam chráněných pluginů
+            const chranenePluginy = [
+                "Branda Pro",
+                "Defender Pro"
+            ];
+            
+            // Najdeme všechny řádky pluginů
+            document.querySelectorAll("#the-list tr").forEach(tr => {
+                let pluginName = tr.querySelector(".plugin-title strong")?.innerText.trim();
+                
+                if (pluginName && chranenePluginy.includes(pluginName)) {
+                    let rowActions = tr.querySelector(".row-actions");
+                    if (rowActions) {
+                        rowActions.style.display = "none";
+                    }
+                }
+            });
+        });
+    </script>
+    <?php
 }
 
-add_filter('plugin_action_links', 'omezit_spravu_pluginu', 10, 2);
-add_filter('network_admin_plugin_action_links', 'omezit_spravu_pluginu', 10, 2);
+add_action('admin_footer', 'skryt_radek_akci_pro_chranene_pluginy');
+
 
 
 ?>
