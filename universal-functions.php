@@ -150,15 +150,6 @@ function skryt_radek_akci_pro_chranene_pluginy() {
                     if (rowActions) {
                         rowActions.style.display = "none";
                     }
-
-                    let updateMessage = tr.querySelector(".update-message.notice");
-                    if (updateMessage) {
-                        updateMessage.querySelectorAll("a").forEach(link => {
-                            if (!link.innerText.includes("aktualizovat nyní")) {
-                                link.style.display = "none";
-                            }
-                        });
-                    }
                 }
             });
         });
