@@ -71,7 +71,7 @@ add_action('admin_footer', 'vlozit_script_do_zapati_administrace');
 function vlozit_script_do_zapati_administrace() {
     $povolene_domeny = [
         'smart-websites.cz',
-        'aramtor.com'
+        'aramtor.com',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
