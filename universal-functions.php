@@ -36,7 +36,7 @@ add_action('admin_notices', function() {
 
         if ($updates_needed) {
             echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px 20px 20px 0px; font-size: 16px;">
-                    <p><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací.</strong></p>
+                    <h2 style="font-size: 20px;"><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací.</strong></h2>
                     <p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím. Máte několik možností, jak to zařídit:</p>
                     <p><strong>Nechte to na nás:</strong><br>Objednejte si naši službu <a href="https://smart-websites.cz/levne-webove-stranky/sprava-webovych-stranek/" target="_blank" style="color:#AF2279;">Správa webu</a> a my se o aktualizace a bezpečí vašeho webu postaráme kompletně za vás. Získáte tak bezstarostný provoz a vždy aktuální systém.</p>
                     <p><strong>Aktualizujte si systém sami:</strong><br>Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí. Po aktualizaci doporučujeme důkladně otestovat funkčnost webu.</p>
