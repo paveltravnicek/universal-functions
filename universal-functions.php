@@ -25,6 +25,7 @@ add_action('admin_notices', function() {
             'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
             'wordpress-seo-premium/wp-seo-premium.php',
             'ultimate-elementor/ultimate-elementor.php',
+            'bdthemes-element-pack/bdthemes-element-pack.php',
             'modern-events-calendar/mec.php'
         ];
 
