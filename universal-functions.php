@@ -38,12 +38,12 @@ add_action('admin_notices', function() {
             echo '<div style="border: 1px solid #F6C6CA; border-radius: 5px; background-color: #F9D7DA; color: #721C23; padding: 15px; margin: 20px 20px 20px 0px; font-size: 16px;">
                 <p><strong>Váš redakční systém by mohl těžit z nejnovějších aktualizací.</strong></p>
                 <p>To zajistí jeho bezproblémový chod a přístup k nejnovějším funkcím. Máte několik možností, jak to zařídit:</p>
-                <ul>
-                    <li style="font-size: 16px;"><strong>Nechte to na nás:</strong> Objednejte si naši službu 
+                <ul style="font-size: 16px;">
+                    <li><strong>Nechte to na nás:</strong> Objednejte si naši službu 
                         <a href="https://smart-websites.cz/levne-webove-stranky/sprava-webovych-stranek/" target="_blank" style="color:#AF2279;">Správa webu</a> 
                         a my se o aktualizace a bezpečí vašeho webu postaráme kompletně za vás. Získáte tak bezstarostný provoz a vždy aktuální systém.
                     </li>
-                    <li style="font-size: 16px;"><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  
+                    <li><strong>Aktualizujte si systém sami:</strong> Pokud máte administrátorský přístup, můžete aktualizace provést svépomocí.  
                         Po aktualizaci doporučujeme důkladně otestovat funkčnost webu.
                     </li>
                 </ul>
