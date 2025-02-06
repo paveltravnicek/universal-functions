@@ -16,7 +16,8 @@ add_action('admin_notices', function() {
             'ultimate-elementor/ultimate-elementor.php',
             'bdthemes-element-pack/bdthemes-element-pack.php',
             'modern-events-calendar/mec.php',
-            'js_composer/js_composer.php'
+            'js_composer/js_composer.php',
+            'ts-visual-composer-extend/ts-visual-composer-extend.php'
         ];
 
         $updates_needed = false;
