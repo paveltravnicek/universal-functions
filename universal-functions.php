@@ -15,7 +15,8 @@ add_action('admin_notices', function() {
             'wordpress-seo-premium/wp-seo-premium.php',
             'ultimate-elementor/ultimate-elementor.php',
             'bdthemes-element-pack/bdthemes-element-pack.php',
-            'modern-events-calendar/mec.php'
+            'modern-events-calendar/mec.php',
+            'js_composer/js_composer.php'
         ];
 
         $updates_needed = false;
