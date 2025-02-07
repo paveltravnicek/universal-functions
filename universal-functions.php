@@ -63,6 +63,7 @@ function vlozit_script_do_zapati_administrace() {
         'aramtor.com',
         'crystaldent.cz',
         'daliborsitavanc.cz',
+        'dispecer.cz',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
