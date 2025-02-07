@@ -61,6 +61,7 @@ function vlozit_script_do_zapati_administrace() {
     $povolene_domeny = [
         'smart-websites.cz',
         'aramtor.com',
+        'crystaldent.cz',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
