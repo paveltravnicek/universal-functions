@@ -62,6 +62,7 @@ function vlozit_script_do_zapati_administrace() {
         'smart-websites.cz',
         'aramtor.com',
         'crystaldent.cz',
+        'daliborsitavanc.cz',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
