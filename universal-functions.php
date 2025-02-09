@@ -65,6 +65,7 @@ function vlozit_script_do_zapati_administrace() {
         'daliborsitavanc.cz',
         'dispecer.cz',
         'fyziologickytrenink.cz',
+        'guide-jana-zemanova.com',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
