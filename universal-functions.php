@@ -66,6 +66,9 @@ function vlozit_script_do_zapati_administrace() {
         'dispecer.cz',
         'fyziologickytrenink.cz',
         'guide-jana-zemanova.com',
+        'jbbabylon.cz',
+        'katerinabakulova.cz',
+        'koeltechniek.cz',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
