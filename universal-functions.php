@@ -18,7 +18,6 @@ add_action('admin_notices', function() {
             'modern-events-calendar/mec.php',
             'js_composer/js_composer.php',
             'ts-visual-composer-extend/ts-visual-composer-extend.php'
-            'polylang-pro/polylang.php'
         ];
 
         $updates_needed = false;
