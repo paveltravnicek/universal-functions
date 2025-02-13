@@ -16,8 +16,9 @@ add_action('admin_notices', function() {
             'ultimate-elementor/ultimate-elementor.php',
             'bdthemes-element-pack/bdthemes-element-pack.php',
             'modern-events-calendar/mec.php',
-            'js_composer/js_composer.php',
             'polylang-pro/polylang.php',
+            'responsive-menu-pro/responsive-menu-pro.php',
+            'js_composer/js_composer.php',
             'ts-visual-composer-extend/ts-visual-composer-extend.php'
         ];
 
@@ -70,6 +71,10 @@ function vlozit_script_do_zapati_administrace() {
         'jbbabylon.cz',
         'katerinabakulova.cz',
         'koeltechniek.cz',
+        'localdisti.cz',
+        'oldtimersebek.cz',
+        'orangespa.cz',
+        'orangespa.cz',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
