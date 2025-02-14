@@ -74,7 +74,8 @@ function vlozit_script_do_zapati_administrace() {
         'localdisti.cz',
         'oldtimersebek.cz',
         'orangespa.cz',
-        'orangespa.cz',
+        'pavel.travnicek.online',
+        'privacychoices.eu',
     ];
 
     $aktualni_domena = $_SERVER['HTTP_HOST'];
