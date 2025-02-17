@@ -192,12 +192,39 @@ function hide_specific_admin_menu_items() {
 add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
 
 /**
- * Skrytí akcí pro chráněné pluginy
+ * Správa přístupu k chráněným pluginům
+ */
+function hide_specific_admin_menu_items() {
+    if (!is_admin()) {
+        return;
+    }
+    
+    $current_user = wp_get_current_user();
+    
+    // Pro paveltravnicek zobrazit vše
+    if ($current_user->user_login === 'paveltravnicek') {
+        return;
+    }
+    
+    // Pro lukashulka skrýt pouze Defender Pro
+    if ($current_user->user_login === 'lukashulka') {
+        remove_menu_page('wp-defender');
+        return;
+    }
+    
+    // Pro všechny ostatní skrýt oba pluginy
+    remove_menu_page('branding');
+    remove_menu_page('wp-defender');
+}
+add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
+
+/**
+ * Skrytí akcí pro chráněné pluginy v seznamu pluginů
  */
 function skryt_radek_akci_pro_chranene_pluginy() {
     $current_user = wp_get_current_user();
     
-    // Pokud je to paveltravnicek, nezobrazujeme žádná omezení
+    // Pro paveltravnicek nezobrazovat žádná omezení
     if ($current_user->user_login === 'paveltravnicek') {
         return;
     }
