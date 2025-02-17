@@ -157,88 +157,22 @@ function hide_paveltravnicek_from_users_list($query) {
 add_action('pre_user_query', 'hide_paveltravnicek_from_users_list');
 
 /**
- * Správa přístupu k chráněným pluginům
- */
-function hide_specific_admin_menu_items() {
-    if (!is_admin()) {
-        return;
-    }
-    
-    $current_user = wp_get_current_user();
-    
-    // Výchozí stav - skrýt oba pluginy
-    $hide_branda = true;
-    $hide_defender = true;
-    
-    // Kontrola pro uživatele paveltravnicek
-    if ($current_user->user_login === 'paveltravnicek') {
-        $hide_branda = false;
-        $hide_defender = false;
-    }
-    
-    // Kontrola pro uživatele lukashulka
-    if ($current_user->user_login === 'lukashulka') {
-        $hide_branda = false; // Povolení přístupu pouze k Branda Pro
-    }
-    
-    // Skrytí pluginů podle nastavených podmínek
-    if ($hide_branda) {
-        remove_menu_page('branding');
-    }
-    if ($hide_defender) {
-        remove_menu_page('wp-defender');
-    }
-}
-add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
-
-/**
- * Správa přístupu k chráněným pluginům
- */
-function hide_specific_admin_menu_items() {
-    if (!is_admin()) {
-        return;
-    }
-    
-    $current_user = wp_get_current_user();
-    
-    // Pro paveltravnicek zobrazit vše
-    if ($current_user->user_login === 'paveltravnicek') {
-        return;
-    }
-    
-    // Pro lukashulka skrýt pouze Defender Pro
-    if ($current_user->user_login === 'lukashulka') {
-        remove_menu_page('wp-defender');
-        return;
-    }
-    
-    // Pro všechny ostatní skrýt oba pluginy
-    remove_menu_page('branding');
-    remove_menu_page('wp-defender');
-}
-add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
-
-/**
- * Skrytí akcí pro chráněné pluginy v seznamu pluginů
+ * Skrytí akcí pro chráněné pluginy
  */
 function skryt_radek_akci_pro_chranene_pluginy() {
     $current_user = wp_get_current_user();
     
-    // Pro paveltravnicek nezobrazovat žádná omezení
-    if ($current_user->user_login === 'paveltravnicek') {
+    if ($current_user->user_login === 'paveltravnicek' || $current_user->user_login === 'lukashulka') {
         return;
     }
 
     ?>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            <?php if ($current_user->user_login === 'lukashulka'): ?>
-                // Pro lukashulka skrýt pouze Defender Pro
-                const chranenePluginy = ["Defender Pro"];
-            <?php else: ?>
-                // Pro ostatní uživatele skrýt oba pluginy
-                const chranenePluginy = ["Branda Pro", "Defender Pro"];
-            <?php endif; ?>
+            const chranenePluginy = [
+                "Branda Pro",
+                "Defender Pro"
+            ];
             
             document.querySelectorAll("#the-list tr").forEach(tr => {
                 const pluginName = tr.querySelector(".plugin-title strong")?.innerText.trim();
