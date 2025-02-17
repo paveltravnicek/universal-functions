@@ -1,3 +1,5 @@
+<?php
+
 add_filter('login_display_language_dropdown', '__return_false');
 
 add_filter('rest_authentication_errors', function($result) {
