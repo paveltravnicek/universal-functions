@@ -168,5 +168,3 @@ function skryt_radek_akci_pro_chranene_pluginy() {
 }
 
 add_action('admin_footer', 'skryt_radek_akci_pro_chranene_pluginy');
-
-?>
