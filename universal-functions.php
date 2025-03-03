@@ -130,6 +130,7 @@ add_action('admin_menu', 'hide_specific_admin_menu_items', 999);
 function vlozit_script_do_zapati_administrace() {
     $povolene_domeny = [
         'smart-websites.cz',
+        'a2development.cz',
         'aramtor.com',
         'crystaldent.cz',
         'daliborsitavanc.cz',
