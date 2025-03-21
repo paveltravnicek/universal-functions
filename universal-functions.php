@@ -132,6 +132,7 @@ function vlozit_script_do_zapati_administrace() {
         'smart-websites.cz',
         'a2development.cz',
         'aramtor.com',
+        'busplanservis.cz',
         'crystaldent.cz',
         'daliborsitavanc.cz',
         'dispecer.cz',
