@@ -1,13 +1,6 @@
 <?php
 add_filter('login_display_language_dropdown', '__return_false');
 
-add_filter('rest_authentication_errors', function($result) {
-    if (!is_user_logged_in()) {
-        return new WP_Error('rest_forbidden', 'REST API is restricted to authenticated users.', array('status' => 401));
-    }
-    return $result;
-});
-
 add_action('admin_notices', function() {
     $current_screen = get_current_screen();
     if ($current_screen->base !== 'dashboard') {
