@@ -137,7 +137,6 @@ function vlozit_script_do_zapati_administrace() {
         'localdisti.cz',
         'oldtimersebek.cz',
         'orangespa.cz',
-        'pavel.travnicek.online',
         'privacychoices.eu',
         'vitalplan.cz',
         'zzstar.cz',
