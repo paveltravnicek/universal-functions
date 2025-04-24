@@ -149,18 +149,28 @@ function vlozit_script_do_zapati_administrace() {
     }
 
     ?>
+    <script type="text/javascript" id="zohodeskasap">
+        var d = document;
+        var s = d.createElement("script");
+        s.type = "text/javascript";
+        s.id = "zohodeskasapscript";
+        s.defer = true;
+        s.nonce = "{place_your_nonce_value_here}"; // Nahraď skutečnou nonce hodnotou nebo tento řádek smaž
+        s.src = "https://desk.zoho.eu/portal/api/web/asapApp/197085000000339427?orgId=20105462640";
+        var t = d.getElementsByTagName("script")[0];
+        t.parentNode.insertBefore(s, t);
 
-<script type="text/javascript">
-        var supportBoxChatId = 2781;
-        var supportBoxChatSecret = 'ba9d4c68795805e1987db16bc7f3b1ae';
-        var supportBoxChatVariables = {
-            email: 'client@email.tld',
-            fullName: 'John Doe',
-            phone: '123456789',
-            customerId: 12345
+        window.ZohoDeskAsapReady = function(callback) {
+            var queue = window.ZohoDeskAsap__asyncalls = window.ZohoDeskAsap__asyncalls || [];
+            if (window.ZohoDeskAsapReadyStatus) {
+                if (callback) queue.push(callback);
+                queue.forEach(fn => fn && fn());
+                window.ZohoDeskAsap__asyncalls = null;
+            } else if (callback) {
+                queue.push(callback);
+            }
         };
     </script>
-    <script src="https://chat.supportbox.cz/web-chat/entry-point" async defer></script>
     <?php
 }
 
