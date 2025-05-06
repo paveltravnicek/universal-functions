@@ -1,29 +1,34 @@
 <?php
 add_filter('login_display_language_dropdown', '__return_false');
 
-add_filter('wp_handle_upload_prefilter', 'limit_image_dimensions');
+add_filter('wp_handle_upload', 'resize_uploaded_image_if_needed');
 
-function limit_image_dimensions($file) {
+function resize_uploaded_image_if_needed($upload) {
     // Jen pro obrázky
     $image_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!in_array($file['type'], $image_types)) {
-        return $file;
+    $file_type = wp_check_filetype($upload['file']);
+    if (!in_array($file_type['type'], $image_types)) {
+        return $upload;
     }
 
-    $image_info = getimagesize($file['tmp_name']);
-    if (!$image_info) {
-        return $file; // Neplatný obrázek
+    // Otevření obrázku přes WP editor
+    $editor = wp_get_image_editor($upload['file']);
+    if (is_wp_error($editor)) {
+        return $upload;
     }
 
-    $width = $image_info[0];
-    $height = $image_info[1];
+    $size = $editor->get_size();
+    $width = $size['width'];
+    $height = $size['height'];
     $max_dimension = 2000;
 
+    // Pokud je delší strana větší než 2000 px, přepočítá velikost a zmenší
     if ($width > $max_dimension || $height > $max_dimension) {
-        $file['error'] = 'Obrázek nesmí přesáhnout rozměr 2 000 px na delší straně. Prosím nahrajte menší obrázek.';
+        $editor->resize($max_dimension, $max_dimension, false); // false = zachová poměr stran
+        $editor->save($upload['file']);
     }
 
-    return $file;
+    return $upload;
 }
 
 add_action('admin_notices', function() {
