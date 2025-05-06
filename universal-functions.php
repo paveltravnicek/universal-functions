@@ -1,6 +1,31 @@
 <?php
 add_filter('login_display_language_dropdown', '__return_false');
 
+add_filter('wp_handle_upload_prefilter', 'limit_image_dimensions');
+
+function limit_image_dimensions($file) {
+    // Jen pro obrázky
+    $image_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($file['type'], $image_types)) {
+        return $file;
+    }
+
+    $image_info = getimagesize($file['tmp_name']);
+    if (!$image_info) {
+        return $file; // Neplatný obrázek
+    }
+
+    $width = $image_info[0];
+    $height = $image_info[1];
+    $max_dimension = 2000;
+
+    if ($width > $max_dimension || $height > $max_dimension) {
+        $file['error'] = 'Obrázek nesmí přesáhnout rozměr 2 000 px na delší straně. Prosím nahrajte menší obrázek.';
+    }
+
+    return $file;
+}
+
 add_action('admin_notices', function() {
     $current_screen = get_current_screen();
     if ($current_screen->base !== 'dashboard') {
