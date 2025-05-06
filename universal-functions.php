@@ -31,6 +31,19 @@ function resize_uploaded_image_if_needed($upload) {
     return $upload;
 }
 
+add_filter('wp_handle_upload_prefilter', 'block_upload_if_site_too_big');
+
+function block_upload_if_site_too_big($file) {
+    $limit_mb = 1000; // limit 1 GB
+    $current_size = folder_size(ABSPATH) / 1024 / 1024;
+
+    if ($current_size > $limit_mb) {
+        $file['error'] = 'Nahrávání souborů bylo zablokováno. Web přesáhl maximální velikost ' . $limit_mb . ' MB.';
+    }
+
+    return $file;
+}
+
 add_action('admin_notices', function() {
     $current_screen = get_current_screen();
     if ($current_screen->base !== 'dashboard') {
