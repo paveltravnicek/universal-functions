@@ -54,7 +54,7 @@ add_action('admin_notices', function() {
     if (!empty($updates->response)) {
         $ignore_plugins = [
             'webtoffee-gdpr-cookie-consent/webtoffee-gdpr-cookie-consent.php',
-            'webtoffee-gdpr-cookie-consent/cookie-law-info.php',
+            'webtoffee-gdpr-cookie-consent/webtoffee-cookie-consent.php',
             'wordpress-seo-premium/wp-seo-premium.php',
             'ultimate-elementor/ultimate-elementor.php',
             'bdthemes-element-pack/bdthemes-element-pack.php',
