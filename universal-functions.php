@@ -1,49 +1,6 @@
 <?php
 add_filter('login_display_language_dropdown', '__return_false');
 
-add_filter('wp_handle_upload', 'resize_uploaded_image_if_needed');
-
-function resize_uploaded_image_if_needed($upload) {
-    // Jen pro obrázky
-    $image_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    $file_type = wp_check_filetype($upload['file']);
-    if (!in_array($file_type['type'], $image_types)) {
-        return $upload;
-    }
-
-    // Otevření obrázku přes WP editor
-    $editor = wp_get_image_editor($upload['file']);
-    if (is_wp_error($editor)) {
-        return $upload;
-    }
-
-    $size = $editor->get_size();
-    $width = $size['width'];
-    $height = $size['height'];
-    $max_dimension = 2000;
-
-    // Pokud je delší strana větší než 2000 px, přepočítá velikost a zmenší
-    if ($width > $max_dimension || $height > $max_dimension) {
-        $editor->resize($max_dimension, $max_dimension, false); // false = zachová poměr stran
-        $editor->save($upload['file']);
-    }
-
-    return $upload;
-}
-
-add_filter('wp_handle_upload_prefilter', 'block_upload_if_site_too_big');
-
-function block_upload_if_site_too_big($file) {
-    $limit_mb = 1000; // limit 1 GB
-    $current_size = folder_size(ABSPATH) / 1024 / 1024;
-
-    if ($current_size > $limit_mb) {
-        $file['error'] = 'Nahrávání souborů bylo zablokováno. Web přesáhl maximální velikost ' . $limit_mb . ' MB.';
-    }
-
-    return $file;
-}
-
 add_action('admin_notices', function() {
     $current_screen = get_current_screen();
     if ($current_screen->base !== 'dashboard') {
