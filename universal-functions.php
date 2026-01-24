@@ -37,6 +37,7 @@ function sw_get_managed_domains() {
 		'megasrot.cz',
 		'oldtimersebek.cz',
 		'orangespa.cz',
+		'podlahy-mareon.cz',
 		'privacychoices.eu',
 		'vitalplan.cz',
 		'zzstar.cz',
