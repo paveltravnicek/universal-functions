@@ -38,6 +38,7 @@ function sw_get_managed_domains() {
 		'oldtimersebek.cz',
 		'orangespa.cz',
 		'podlahy-mareon.cz',
+		'podovi-mareon.hr',
 		'privacychoices.eu',
 		'vitalplan.cz',
 		'zzstar.cz',
