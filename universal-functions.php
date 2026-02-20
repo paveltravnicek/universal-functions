@@ -11,6 +11,7 @@
  * - Skrytí akcí u vybraných pluginů (kromě pro uživatele „paveltravnicek“)
  * - Skrytí položek menu Branda/Defender pro běžné uživatele
  * - Zoho Desk ASAP skript jen na spravovaných doménách
+ * - Auto-logout při návštěvě maskované login URL (Defender Pro) – fix 404 pro přihlášené
  */
 
 defined('ABSPATH') || exit;
@@ -62,6 +63,44 @@ function sw_domain_is_managed($host) {
  * UX / drobnosti
  * ------------------------------------------------*/
 add_filter('login_display_language_dropdown', '__return_false');
+
+/** ------------------------------------------------
+ * Defender Pro Mask Login – auto logout na maskované URL
+ * - řeší 404 na /administrace/ (nebo /prihlaseni/) pokud je uživatel stále přihlášený
+ * - chování: přijdu na masku -> jsem přihlášený -> odhlásí mě -> vrátí zpět na masku -> zobrazí login
+ * ------------------------------------------------*/
+add_action('init', function () {
+
+	// Slugy maskovaných login URL (bez lomítek); můžeš mít víc variant napříč weby
+	$mask_slugs = ['administrace', 'prihlaseni'];
+
+	$request_uri = $_SERVER['REQUEST_URI'] ?? '';
+	$path = parse_url($request_uri, PHP_URL_PATH);
+	if (!$path) return;
+
+	// Normalizace cesty: odstraní duplicitní lomítka a koncový lomítko
+	$path_norm = rtrim(preg_replace('~/+~', '/', $path), '/');
+
+	$matched_slug = null;
+	foreach ($mask_slugs as $slug) {
+		$mask_path_norm = '/' . trim($slug, '/');
+		if ($path_norm === $mask_path_norm) {
+			$matched_slug = $slug;
+			break;
+		}
+	}
+	if ($matched_slug === null) return;
+
+	// Jen pokud je uživatel přihlášený
+	if (is_user_logged_in()) {
+		$redirect_back = home_url('/' . trim($matched_slug, '/') . '/');
+		$logout_url    = wp_logout_url($redirect_back);
+
+		wp_safe_redirect($logout_url, 302);
+		exit;
+	}
+
+}, 0);
 
 /** ------------------------------------------------
  * Obrázky: automatické zmenšení velkých souborů
