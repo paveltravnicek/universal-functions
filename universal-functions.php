@@ -67,11 +67,11 @@ add_filter('login_display_language_dropdown', '__return_false');
 /** ------------------------------------------------
  * Defender Pro Mask Login – auto logout na maskované URL
  * - řeší 404 na /administrace/ (nebo /prihlaseni/) pokud je uživatel stále přihlášený
- * - chování: přijdu na masku -> jsem přihlášený -> odhlásí mě -> vrátí zpět na masku -> zobrazí login
+ * - chování: přijdu na masku -> jsem přihlášený -> WP logout -> zpět na masku -> zobrazí login
  * ------------------------------------------------*/
 add_action('init', function () {
 
-	// Slugy maskovaných login URL (bez lomítek); můžeš mít víc variant napříč weby
+	// Slugy maskovaných login URL (bez lomítek)
 	$mask_slugs = ['administrace', 'prihlaseni'];
 
 	$request_uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -91,16 +91,26 @@ add_action('init', function () {
 	}
 	if ($matched_slug === null) return;
 
+	// Pokud už tu běží náš redirect (pojistka proti smyčce kvůli cache/proxy)
+	if (isset($_GET['sw_autologout']) && $_GET['sw_autologout'] === '1') {
+		return;
+	}
+
 	// Jen pokud je uživatel přihlášený
 	if (is_user_logged_in()) {
-		$redirect_back = home_url('/' . trim($matched_slug, '/') . '/');
-		$logout_url    = wp_logout_url($redirect_back);
 
-		wp_safe_redirect($logout_url, 302);
+		// Odhlásit přímo (bez wp-login.php?action=logout -> Defender loop)
+		wp_logout();
+
+		$redirect_back = home_url('/' . trim($matched_slug, '/') . '/');
+		$redirect_back = add_query_arg('sw_autologout', '1', $redirect_back);
+
+		wp_safe_redirect($redirect_back, 302);
 		exit;
 	}
 
 }, 0);
+
 
 /** ------------------------------------------------
  * Obrázky: automatické zmenšení velkých souborů
