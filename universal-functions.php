@@ -26,6 +26,8 @@ function sw_get_managed_domains() {
 		'a2development.cz',
 		'aramtor.com',
 		'busplanservis.cz',
+		'ciraa.eu',
+		'cirkularniakademie.cz',
 		'crystaldent.cz',
 		'daliborsitavanc.cz',
 		'dispecer.cz',
@@ -41,6 +43,7 @@ function sw_get_managed_domains() {
 		'podlahy-mareon.cz',
 		'podovi-mareon.hr',
 		'privacychoices.eu',
+		'spolecne-udrzitelne.cz',
 		'vitalplan.cz',
 		'zzstar.cz',
 	];
