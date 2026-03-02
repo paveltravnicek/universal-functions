@@ -69,8 +69,12 @@ add_filter('login_display_language_dropdown', '__return_false');
 
 /** ------------------------------------------------
  * Defender Pro Mask Login – auto logout na maskované URL
- * - řeší 404 na /administrace/ (nebo /prihlaseni/) pokud je uživatel stále přihlášený
- * - chování: přijdu na masku -> jsem přihlášený -> WP logout -> zpět na masku -> zobrazí login
+ * + kompatibilita s pluginem User Switching
+ *
+ * Chování:
+ * - přijdu na /administrace/ nebo /prihlaseni/
+ *   - pokud jsem přihlášený a NEJSEM "switched" -> wp_logout() a zpět na masku (login se zobrazí)
+ *   - pokud jsem přihlášený a JSEM "switched" -> NEodhlašovat, jen přesměrovat do /wp-admin/
  * ------------------------------------------------*/
 add_action('init', function () {
 
@@ -79,7 +83,9 @@ add_action('init', function () {
 
 	$request_uri = $_SERVER['REQUEST_URI'] ?? '';
 	$path = parse_url($request_uri, PHP_URL_PATH);
-	if (!$path) return;
+	if (!$path) {
+		return;
+	}
 
 	// Normalizace cesty: odstraní duplicitní lomítka a koncový lomítko
 	$path_norm = rtrim(preg_replace('~/+~', '/', $path), '/');
@@ -92,25 +98,56 @@ add_action('init', function () {
 			break;
 		}
 	}
-	if ($matched_slug === null) return;
+	if ($matched_slug === null) {
+		return;
+	}
 
-	// Pokud už tu běží náš redirect (pojistka proti smyčce kvůli cache/proxy)
+	// Pojistka proti smyčce kvůli cache/proxy
 	if (isset($_GET['sw_autologout']) && $_GET['sw_autologout'] === '1') {
 		return;
 	}
 
 	// Jen pokud je uživatel přihlášený
-	if (is_user_logged_in()) {
+	if (!is_user_logged_in()) {
+		return;
+	}
 
-		// Odhlásit přímo (bez wp-login.php?action=logout -> Defender loop)
-		wp_logout();
+	// ------------------------------------------------
+	// User Switching: když je "switched", nesmíme logoutnout,
+	// jinak ztratíš možnost "Switch back".
+	// ------------------------------------------------
+	$is_switched = false;
 
-		$redirect_back = home_url('/' . trim($matched_slug, '/') . '/');
-		$redirect_back = add_query_arg('sw_autologout', '1', $redirect_back);
+	// Primárně oficiální helper z pluginu User Switching (když je aktivní)
+	if (function_exists('user_switching_is_switched')) {
+		$is_switched = (bool) user_switching_is_switched();
+	}
 
-		wp_safe_redirect($redirect_back, 302);
+	// Fallback pojistka (kdyby helper nebyl dostupný, ale cookie existovala)
+	// Nechávám schválně obecně – kdyby se v budoucnu změnil název helperu.
+	if (!$is_switched && !empty($_COOKIE)) {
+		foreach (array_keys($_COOKIE) as $cookie_name) {
+			if (stripos($cookie_name, 'switched') !== false) {
+				$is_switched = true;
+				break;
+			}
+		}
+	}
+
+	if ($is_switched) {
+		// Jsi přepnutý na jiného uživatele -> neodhlašovat, jen poslat do adminu
+		wp_safe_redirect(admin_url(), 302);
 		exit;
 	}
+
+	// Běžný režim: odhlásit přímo (bez wp-login.php?action=logout -> Defender loop)
+	wp_logout();
+
+	$redirect_back = home_url('/' . trim($matched_slug, '/') . '/');
+	$redirect_back = add_query_arg('sw_autologout', '1', $redirect_back);
+
+	wp_safe_redirect($redirect_back, 302);
+	exit;
 
 }, 0);
 
