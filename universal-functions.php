@@ -71,12 +71,22 @@ add_filter('login_display_language_dropdown', '__return_false');
  * Defender Pro Mask Login – auto logout na maskované URL
  * + kompatibilita s pluginem User Switching
  *
- * Chování:
- * - přijdu na /administrace/ nebo /prihlaseni/
- *   - pokud jsem přihlášený a NEJSEM "switched" -> wp_logout() a zpět na masku (login se zobrazí)
- *   - pokud jsem přihlášený a JSEM "switched" -> NEodhlašovat, jen přesměrovat do /wp-admin/
+ * - maska: /administrace/ nebo /prihlaseni/
+ * - běžně: jsem přihlášený -> wp_logout() -> zpět na masku -> zobrazí login
+ * - pokud probíhá user switching request -> NIC nedělat (jinak se rozbije switch)
+ * - pokud jsem "switched" -> NEodhlašovat, jen přesměrovat do /wp-admin/
  * ------------------------------------------------*/
 add_action('init', function () {
+
+	// 1) Pokud probíhá přepínání uživatelů (User Switching), tak NIKDY neshazovat session.
+	// Podle podpory User Switching je action typicky:
+	// - switch_to_user (switch)
+	// - switch_to_olduser (switch back)
+	// - switch_off (switch off)
+	$us_action = $_REQUEST['action'] ?? '';
+	if (in_array($us_action, ['switch_to_user', 'switch_to_olduser', 'switch_off'], true)) {
+		return;
+	}
 
 	// Slugy maskovaných login URL (bez lomítek)
 	$mask_slugs = ['administrace', 'prihlaseni'];
@@ -102,7 +112,7 @@ add_action('init', function () {
 		return;
 	}
 
-	// Pojistka proti smyčce kvůli cache/proxy
+	// Pojistka proti smyčce
 	if (isset($_GET['sw_autologout']) && $_GET['sw_autologout'] === '1') {
 		return;
 	}
@@ -112,30 +122,16 @@ add_action('init', function () {
 		return;
 	}
 
-	// ------------------------------------------------
-	// User Switching: když je "switched", nesmíme logoutnout,
-	// jinak ztratíš možnost "Switch back".
-	// ------------------------------------------------
+	// 2) Pokud je uživatel "switched", neodhlašovat.
+	// User Switching poskytuje template funkci current_user_switched().
 	$is_switched = false;
-
-	// Primárně oficiální helper z pluginu User Switching (když je aktivní)
-	if (function_exists('user_switching_is_switched')) {
-		$is_switched = (bool) user_switching_is_switched();
-	}
-
-	// Fallback pojistka (kdyby helper nebyl dostupný, ale cookie existovala)
-	// Nechávám schválně obecně – kdyby se v budoucnu změnil název helperu.
-	if (!$is_switched && !empty($_COOKIE)) {
-		foreach (array_keys($_COOKIE) as $cookie_name) {
-			if (stripos($cookie_name, 'switched') !== false) {
-				$is_switched = true;
-				break;
-			}
-		}
+	if (function_exists('current_user_switched')) {
+		// Vrací false nebo WP_User (původní user)
+		$is_switched = (bool) current_user_switched();
 	}
 
 	if ($is_switched) {
-		// Jsi přepnutý na jiného uživatele -> neodhlašovat, jen poslat do adminu
+		// Jsi přepnutý na jiného usera -> maska není login, tak radši rovnou do administrace
 		wp_safe_redirect(admin_url(), 302);
 		exit;
 	}
