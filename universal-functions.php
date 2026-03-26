@@ -12,6 +12,7 @@
  * - Skrytí položek menu Branda/Defender pro běžné uživatele
  * - Zoho Desk ASAP skript jen na spravovaných doménách
  * - Auto-logout při návštěvě maskované login URL (Defender Pro) – fix 404 pro přihlášené
+ * - Přidání informace o původu odchozího e-mailu do wp_mail()
  */
 
 defined('ABSPATH') || exit;
@@ -66,6 +67,83 @@ function sw_domain_is_managed($host) {
  * UX / drobnosti
  * ------------------------------------------------*/
 add_filter('login_display_language_dropdown', '__return_false');
+
+/** ------------------------------------------------
+ * Přidání informace o původu odchozího e-mailu
+ * ------------------------------------------------*/
+/**
+ * Přidá do všech odchozích e-mailů informaci, ze kterého webu byly odeslány.
+ * Funguje pro většinu mailů posílaných přes wp_mail().
+ */
+add_filter('wp_mail', 'sw_add_origin_site_to_emails', 20);
+
+function sw_add_origin_site_to_emails($args) {
+
+	$site_name = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+	$site_url  = home_url('/');
+	$host      = wp_parse_url($site_url, PHP_URL_HOST);
+
+	if (!$host) {
+		$host = $_SERVER['HTTP_HOST'] ?? '';
+	}
+
+	$label_plain = "\n\n---\nOdesláno z webu: {$site_name}";
+	if (!empty($host)) {
+		$label_plain .= " ({$host})";
+	}
+
+	$label_html  = '<div style="text-align:center;color:#ffffff;background:#222222;padding:10px 0;font-size:12px;">';
+	$label_html .= 'Odesláno z webu: <strong>' . esc_html($site_name) . '</strong>';
+
+	if (!empty($host)) {
+		$label_html .= ' (' . esc_html($host) . ')';
+	}
+
+	$label_html .= '</div>';
+
+	// Přidání vlastní technické hlavičky
+	if (empty($args['headers'])) {
+		$args['headers'] = [];
+	}
+
+	if (is_string($args['headers'])) {
+		$args['headers'] = preg_split("/\r\n|\r|\n/", $args['headers']);
+	}
+
+	if (is_array($args['headers'])) {
+		$args['headers'][] = 'X-Origin-Site: ' . $site_name . (!empty($host) ? ' | ' . $host : '');
+	}
+
+	// Zjistíme, jestli je e-mail HTML
+	$is_html = false;
+
+	if (!empty($args['headers']) && is_array($args['headers'])) {
+		foreach ($args['headers'] as $header) {
+			if (stripos($header, 'Content-Type: text/html') !== false) {
+				$is_html = true;
+				break;
+			}
+		}
+	}
+
+	// Když není explicitně HTML hlavička, zkusíme odhadnout podle obsahu
+	if (!$is_html && isset($args['message']) && $args['message'] !== wp_strip_all_tags($args['message'])) {
+		$is_html = true;
+	}
+
+	// Aby se text nepřidal víckrát
+	if (strpos($args['message'], 'X-Origin-Site-Marker') !== false) {
+		return $args;
+	}
+
+	if ($is_html) {
+		$args['message'] .= "\n<!-- X-Origin-Site-Marker -->\n" . $label_html;
+	} else {
+		$args['message'] .= $label_plain;
+	}
+
+	return $args;
+}
 
 /** ------------------------------------------------
  * Defender Pro Mask Login – auto logout na maskované URL
@@ -146,7 +224,6 @@ add_action('init', function () {
 	exit;
 
 }, 0);
-
 
 /** ------------------------------------------------
  * Obrázky: automatické zmenšení velkých souborů
@@ -305,7 +382,7 @@ function sw_hide_actions_for_protected_plugins_js() {
 	?>
 	<script>
 		document.addEventListener("DOMContentLoaded", function () {
-			const protectedNames = ["Branda Pro","Defender Pro"];
+			const protectedNames = ["Branda Pro", "Defender Pro"];
 			document.querySelectorAll("#the-list tr").forEach(tr => {
 				const name = tr.querySelector(".plugin-title strong")?.innerText.trim();
 				if (name && protectedNames.includes(name)) {
@@ -328,7 +405,7 @@ function sw_protect_paveltravnicek_caps($allcaps, $caps, $args) {
 	$target = get_user_by('login', 'paveltravnicek');
 	if (!$target) return $allcaps;
 
-	$blocked_caps = ['delete_users','remove_users','edit_users'];
+	$blocked_caps = ['delete_users', 'remove_users', 'edit_users'];
 	if ((int) $args[2] === (int) $target->ID && in_array($args[0], $blocked_caps, true)) {
 		$allcaps[$args[0]] = false;
 	}
@@ -357,7 +434,7 @@ function sw_hide_specific_admin_menu_items() {
 	$current = wp_get_current_user();
 	if (!$current) return;
 
-	$whitelist = ['paveltravnicek','lukashulka'];
+	$whitelist = ['paveltravnicek', 'lukashulka'];
 	if (!in_array($current->user_login, $whitelist, true)) {
 		remove_menu_page('branding');    // Branda Pro
 		remove_menu_page('wp-defender'); // Defender Pro
