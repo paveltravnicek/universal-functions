@@ -46,6 +46,7 @@ function sw_get_managed_domains() {
 		'privacychoices.eu',
 		'spolecne-udrzitelne.cz',
 		'vitalplan.cz',
+		'zamecnikvpraze.cz',
 		'zzstar.cz',
 	];
 }
