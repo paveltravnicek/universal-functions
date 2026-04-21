@@ -5,7 +5,7 @@
  * - Jedno místo pro správu seznamu spravovaných domén (viz sw_get_managed_domains)
  * - Dvě varianty admin noticů dle domény (managed vs. unmanaged)
  * - Vypnutí jazykového přepínače na loginu
- * - Zmenšení nahrávaných obrázků (max 2000 px, zachování poměru)
+ * - Skrytí vybraných médií z knihovny médií
  * - Upozornění na zastaralou rodičovskou šablonu
  * - Ochrana účtu „paveltravnicek“ (nelze smazat/upravit; skrytí v seznamu)
  * - Skrytí akcí u vybraných pluginů (kromě pro uživatele „paveltravnicek“)
@@ -158,10 +158,6 @@ function sw_add_origin_site_to_emails($args) {
 add_action('init', function () {
 
 	// 1) Pokud probíhá přepínání uživatelů (User Switching), tak NIKDY neshazovat session.
-	// Podle podpory User Switching je action typicky:
-	// - switch_to_user (switch)
-	// - switch_to_olduser (switch back)
-	// - switch_off (switch off)
 	$us_action = $_REQUEST['action'] ?? '';
 	if (in_array($us_action, ['switch_to_user', 'switch_to_olduser', 'switch_off'], true)) {
 		return;
@@ -202,15 +198,12 @@ add_action('init', function () {
 	}
 
 	// 2) Pokud je uživatel "switched", neodhlašovat.
-	// User Switching poskytuje template funkci current_user_switched().
 	$is_switched = false;
 	if (function_exists('current_user_switched')) {
-		// Vrací false nebo WP_User (původní user)
 		$is_switched = (bool) current_user_switched();
 	}
 
 	if ($is_switched) {
-		// Jsi přepnutý na jiného usera -> maska není login, tak radši rovnou do administrace
 		wp_safe_redirect(admin_url(), 302);
 		exit;
 	}
@@ -227,35 +220,127 @@ add_action('init', function () {
 }, 0);
 
 /** ------------------------------------------------
- * Obrázky: automatické zmenšení velkých souborů
+ * Média: možnost skrýt vybraná média z knihovny
+ * - přidá checkbox "Skrýt z knihovny médií"
+ * - skrytá média neuvidí běžní uživatelé ani ve výběru médií
+ * - uživatel "paveltravnicek" je vidí normálně
  * ------------------------------------------------*/
-add_filter('wp_handle_upload', 'sw_resize_uploaded_image_if_needed');
+function sw_hidden_media_library() {
 
-function sw_resize_uploaded_image_if_needed($upload) {
-	$image_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-	$file_type   = wp_check_filetype($upload['file']);
+	$sw_can_see_hidden = static function () {
+		$user = wp_get_current_user();
 
-	if (empty($file_type['type']) || !in_array($file_type['type'], $image_types, true)) {
-		return $upload;
-	}
+		if (!$user || !$user->exists()) {
+			return false;
+		}
 
-	$editor = wp_get_image_editor($upload['file']);
-	if (is_wp_error($editor)) {
-		return $upload;
-	}
+		if ($user->user_login === 'paveltravnicek') {
+			return true;
+		}
 
-	$size          = $editor->get_size();
-	$width         = isset($size['width']) ? (int) $size['width'] : 0;
-	$height        = isset($size['height']) ? (int) $size['height'] : 0;
-	$max_dimension = 2000;
+		return false;
+	};
 
-	if ($width > $max_dimension || $height > $max_dimension) {
-		$editor->resize($max_dimension, $max_dimension, false); // zachová poměr stran
-		$editor->save($upload['file']);
-	}
+	add_filter(
+		'attachment_fields_to_edit',
+		static function ($form_fields, $post) {
+			$value = get_post_meta($post->ID, '_sw_hidden_media', true);
 
-	return $upload;
+			$form_fields['sw_hidden_media'] = [
+				'label' => 'Skryté médium',
+				'input' => 'html',
+				'html'  => '<label style="display:flex;align-items:center;gap:8px;">'
+					. '<input type="checkbox" name="attachments[' . (int) $post->ID . '][sw_hidden_media]" value="1" ' . checked($value, '1', false) . ' />'
+					. '<span>Skrýt z knihovny médií</span>'
+					. '</label>',
+				'helps' => 'Skryté médium nebude viditelné v knihovně médií ani ve výběru médií pro běžné uživatele.',
+			];
+
+			return $form_fields;
+		},
+		10,
+		2
+	);
+
+	add_filter(
+		'attachment_fields_to_save',
+		static function ($post, $attachment) {
+			if (isset($attachment['sw_hidden_media']) && (int) $attachment['sw_hidden_media'] === 1) {
+				update_post_meta($post['ID'], '_sw_hidden_media', '1');
+			} else {
+				delete_post_meta($post['ID'], '_sw_hidden_media');
+			}
+
+			return $post;
+		},
+		10,
+		2
+	);
+
+	add_filter(
+		'ajax_query_attachments_args',
+		static function ($query) use ($sw_can_see_hidden) {
+			if ($sw_can_see_hidden()) {
+				return $query;
+			}
+
+			$meta_query   = isset($query['meta_query']) && is_array($query['meta_query']) ? $query['meta_query'] : [];
+			$meta_query[] = [
+				'relation' => 'OR',
+				[
+					'key'     => '_sw_hidden_media',
+					'compare' => 'NOT EXISTS',
+				],
+				[
+					'key'     => '_sw_hidden_media',
+					'value'   => '1',
+					'compare' => '!=',
+				],
+			];
+
+			$query['meta_query'] = $meta_query;
+
+			return $query;
+		}
+	);
+
+	add_action(
+		'pre_get_posts',
+		static function ($query) use ($sw_can_see_hidden) {
+			if (!is_admin() || !$query->is_main_query()) {
+				return;
+			}
+
+			global $pagenow;
+
+			if ($pagenow !== 'upload.php') {
+				return;
+			}
+
+			if ($sw_can_see_hidden()) {
+				return;
+			}
+
+			$meta_query   = $query->get('meta_query');
+			$meta_query   = is_array($meta_query) ? $meta_query : [];
+			$meta_query[] = [
+				'relation' => 'OR',
+				[
+					'key'     => '_sw_hidden_media',
+					'compare' => 'NOT EXISTS',
+				],
+				[
+					'key'     => '_sw_hidden_media',
+					'value'   => '1',
+					'compare' => '!=',
+				],
+			];
+
+			$query->set('meta_query', $meta_query);
+		}
+	);
 }
+sw_hidden_media_library();
 
 /** ------------------------------------------------
  * Admin notice: dle domény (managed vs. unmanaged)
@@ -298,7 +383,6 @@ add_action('admin_notices', function () {
 	$is_managed = sw_domain_is_managed($host);
 
 	if (!$is_managed) {
-		// NESPRAVOVANÁ DOMÉNA – upsell
 		?>
 		<div class="notice notice-warning" style="border-left-color:#AF2279;padding:16px 20px;">
 			<h2 style="margin:0 0 12px;font-size:18px;line-height:1.4;">Váš web čekají důležité aktualizace</h2>
@@ -332,7 +416,6 @@ add_action('admin_notices', function () {
 		</div>
 		<?php
 	} else {
-		// SPRAVOVANÁ DOMÉNA – uklidnění
 		?>
 		<div class="notice notice-info" style="padding:16px 20px;">
 			<h2 style="margin:0 0 12px;font-size:18px;line-height:1.4;">Aktualizace webu jsou pod kontrolou</h2>
@@ -461,7 +544,6 @@ function sw_admin_footer_insert_zoho_asap() {
 			s.id = "zohodeskasapscript";
 			s.defer = true;
 
-			// Volitelně: v wp-config.php definuj nonce: define('SW_ZOHO_NONCE','...');
 			<?php if (defined('SW_ZOHO_NONCE') && SW_ZOHO_NONCE) : ?>
 			s.nonce = "<?php echo esc_js(SW_ZOHO_NONCE); ?>";
 			<?php endif; ?>
