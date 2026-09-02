@@ -5,11 +5,18 @@
  * Verzi níž zvyš při každém pushi. Zobrazuje se v HTML komentáři
  * na konci souboru, takže na kterémkoli webu poznáš, co tam běží.
  * ------------------------------------------------
+ * Změny oproti předchozí verzi:
+ * - PŘIDÁNO: kanonické adresy (rel=canonical) – SmartCrawl je jádru odebírá a nedodává vlastní
+ * - Login mask: slug se čte z Defenderu, fallback na seznam; ošetřen CSRF na auto-logout
+ * - Ochrana pluginů: skutečná (server-side), ne skrývání odkazů JavaScriptem
+ * - Polyfill str_ends_with přesunut na začátek souboru
+ * - Oprava značky proti dvojímu vložení podpisu u textových e-mailů
+ * ------------------------------------------------
  */
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-09-02.2');
+define('SW_SHARED_VERSION', '2026-09-02.1');
 
 
 /** ------------------------------------------------
