@@ -795,5 +795,17 @@ add_action('admin_notices', function () {
 	echo "canonical fn:   " . (function_exists('sw_canonical_is_enabled') ? (sw_canonical_is_enabled() ? 'zapnuto' : 'VYPNUTO') : 'funkce neexistuje') . "\n";
 	echo "SEO pluginy:    " . ($seo ? implode(', ', $seo) : 'žádný nenalezen') . "\n";
 	echo "rel_canonical:  " . (has_action('wp_head', 'rel_canonical') ? 'jádro funguje' : 'ODEBRÁNO pluginem') . "\n";
-	echo '</pre></div>';
+	echo '
+	$up = get_site_transient('update_plugins');
+	$pending = (!empty($up->response) && is_array($up->response)) ? array_keys($up->response) : [];
+	echo "\npluginy k aktualizaci: " . (count($pending) ?: '0') . "\n";
+	foreach ($pending as $p) {
+		echo "   - " . esc_html($p) . "\n";
+	}
+
+	$data = function_exists('wp_get_update_data') ? wp_get_update_data() : ['counts' => []];
+	echo "\nWP počítadlo:\n";
+	echo "   pluginy: " . ($data['counts']['plugins'] ?? '?') . "\n";
+	echo "   šablony: " . ($data['counts']['themes'] ?? '?') . "\n";
+	echo "   jádro:   " . ($data['counts']['wordpress'] ?? '?') . "\n";</pre></div>';
 });
