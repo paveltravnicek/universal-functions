@@ -1,0 +1,21 @@
+name: Kontrola syntaxe PHP
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stažení repozitáře
+        uses: actions/checkout@v4
+
+      - name: Nastavení PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Kontrola všech PHP souborů
+        run: |
+          find . -name '*.php' -print0 | xargs -0 -n1 php -l
