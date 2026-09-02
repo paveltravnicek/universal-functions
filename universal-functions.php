@@ -772,3 +772,28 @@ add_action('wp_head', function () {
 		sw_canonical_is_enabled() ? 'zapnuto' : 'vypnuto (aktivní jiný SEO plugin)'
 	);
 }, 98);
+
+/** DOČASNÁ DIAGNOSTIKA – po vyřešení smazat */
+add_action('admin_notices', function () {
+
+	if (!current_user_can('manage_options')) return;
+
+	$screen = function_exists('get_current_screen') ? get_current_screen() : null;
+	if (!$screen || $screen->base !== 'dashboard') return;
+
+	$seo = [];
+	if (defined('WPSEO_VERSION'))    $seo[] = 'Yoast ' . WPSEO_VERSION;
+	if (defined('SEOPRESS_VERSION')) $seo[] = 'SEOPress';
+	if (defined('AIOSEO_VERSION'))   $seo[] = 'AIOSEO';
+	if (class_exists('RankMath'))    $seo[] = 'RankMath';
+	if (defined('SMARTCRAWL_VERSION')) $seo[] = 'SmartCrawl ' . SMARTCRAWL_VERSION;
+
+	echo '<div class="notice notice-info"><pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;">';
+	echo "SW shared:      " . (defined('SW_SHARED_VERSION') ? SW_SHARED_VERSION : '*** NEDEFINOVÁNO – soubor se nenačítá ***') . "\n";
+	echo "host:           " . esc_html($_SERVER['HTTP_HOST'] ?? '?') . "\n";
+	echo "managed:        " . (function_exists('sw_domain_is_managed') && sw_domain_is_managed($_SERVER['HTTP_HOST'] ?? '') ? 'ano' : 'ne') . "\n";
+	echo "canonical fn:   " . (function_exists('sw_canonical_is_enabled') ? (sw_canonical_is_enabled() ? 'zapnuto' : 'VYPNUTO') : 'funkce neexistuje') . "\n";
+	echo "SEO pluginy:    " . ($seo ? implode(', ', $seo) : 'žádný nenalezen') . "\n";
+	echo "rel_canonical:  " . (has_action('wp_head', 'rel_canonical') ? 'jádro funguje' : 'ODEBRÁNO pluginem') . "\n";
+	echo '</pre></div>';
+});
