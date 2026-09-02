@@ -1,14 +1,20 @@
 <?php
 /**
  * Shared functions.php (GitHub) – Smart Websites
+ * ------------------------------------------------
+ * Verzi níž zvyš při každém pushi. Zobrazuje se v HTML komentáři
+ * na konci souboru, takže na kterémkoli webu poznáš, co tam běží.
+ * ------------------------------------------------
  */
 
-define('SW_SHARED_VERSION', '2026-09-02.1');
 defined('ABSPATH') || exit;
+
+define('SW_SHARED_VERSION', '2026-09-02.2');
 
 
 /** ------------------------------------------------
  * Helper: str_ends_with pro starší PHP
+ * MUSÍ být před prvním použitím v sw_domain_is_managed()
  * ------------------------------------------------*/
 if (!function_exists('str_ends_with')) {
 	function str_ends_with($haystack, $needle) {
@@ -757,55 +763,31 @@ add_action('admin_footer', function () {
 	<?php
 });
 
-/** Verze sdíleného souboru – vpravo dole v administraci */
-add_filter('update_footer', function () {
-	return 'SW shared: ' . SW_SHARED_VERSION;
-}, 20);
 
-/** Diagnostika ve zdrojovém kódu, jen pro přihlášeného správce */
+/** ------------------------------------------------
+ * Verze a stav ve zdrojovém kódu – jen pro přihlášeného správce
+ * ------------------------------------------------
+ * Návštěvník ani nepřihlášený crawler tenhle komentář nikdy neuvidí.
+ * Slouží k rychlé kontrole, jaká verze na webu běží a jestli se
+ * kanonické adresy vůbec generují.
+ *
+ * Patičku administrace (update_footer) přepisuje Branda Pro,
+ * proto je verze tady a ne tam.
+ * ------------------------------------------------*/
 add_action('wp_head', function () {
-	if (!current_user_can('manage_options')) return;
 
-	printf(
-		"\n<!-- SW shared %s | canonical: %s -->\n",
-		esc_html(SW_SHARED_VERSION),
-		sw_canonical_is_enabled() ? 'zapnuto' : 'vypnuto (aktivní jiný SEO plugin)'
-	);
-}, 98);
-
-/** DOČASNÁ DIAGNOSTIKA – po vyřešení smazat */
-add_action('admin_notices', function () {
-
-	if (!current_user_can('manage_options')) return;
-
-	$screen = function_exists('get_current_screen') ? get_current_screen() : null;
-	if (!$screen || $screen->base !== 'dashboard') return;
-
-	$seo = [];
-	if (defined('WPSEO_VERSION'))    $seo[] = 'Yoast ' . WPSEO_VERSION;
-	if (defined('SEOPRESS_VERSION')) $seo[] = 'SEOPress';
-	if (defined('AIOSEO_VERSION'))   $seo[] = 'AIOSEO';
-	if (class_exists('RankMath'))    $seo[] = 'RankMath';
-	if (defined('SMARTCRAWL_VERSION')) $seo[] = 'SmartCrawl ' . SMARTCRAWL_VERSION;
-
-	echo '<div class="notice notice-info"><pre style="white-space:pre-wrap;font-size:12px;line-height:1.6;">';
-	echo "SW shared:      " . (defined('SW_SHARED_VERSION') ? SW_SHARED_VERSION : '*** NEDEFINOVÁNO – soubor se nenačítá ***') . "\n";
-	echo "host:           " . esc_html($_SERVER['HTTP_HOST'] ?? '?') . "\n";
-	echo "managed:        " . (function_exists('sw_domain_is_managed') && sw_domain_is_managed($_SERVER['HTTP_HOST'] ?? '') ? 'ano' : 'ne') . "\n";
-	echo "canonical fn:   " . (function_exists('sw_canonical_is_enabled') ? (sw_canonical_is_enabled() ? 'zapnuto' : 'VYPNUTO') : 'funkce neexistuje') . "\n";
-	echo "SEO pluginy:    " . ($seo ? implode(', ', $seo) : 'žádný nenalezen') . "\n";
-	echo "rel_canonical:  " . (has_action('wp_head', 'rel_canonical') ? 'jádro funguje' : 'ODEBRÁNO pluginem') . "\n";
-	echo '
-	$up = get_site_transient('update_plugins');
-	$pending = (!empty($up->response) && is_array($up->response)) ? array_keys($up->response) : [];
-	echo "\npluginy k aktualizaci: " . (count($pending) ?: '0') . "\n";
-	foreach ($pending as $p) {
-		echo "   - " . esc_html($p) . "\n";
+	if (!current_user_can('manage_options')) {
+		return;
 	}
 
-	$data = function_exists('wp_get_update_data') ? wp_get_update_data() : ['counts' => []];
-	echo "\nWP počítadlo:\n";
-	echo "   pluginy: " . ($data['counts']['plugins'] ?? '?') . "\n";
-	echo "   šablony: " . ($data['counts']['themes'] ?? '?') . "\n";
-	echo "   jádro:   " . ($data['counts']['wordpress'] ?? '?') . "\n";</pre></div>';
-});
+	$meta = get_option('swsfl_meta', []);
+	$hash = is_array($meta) ? substr((string) ($meta['active_hash'] ?? ''), 0, 8) : '';
+
+	printf(
+		"\n<!-- SW shared %s | hash %s | canonical %s -->\n",
+		esc_html(SW_SHARED_VERSION),
+		esc_html($hash !== '' ? $hash : '?'),
+		sw_canonical_is_enabled() ? 'on' : 'off'
+	);
+
+}, 98);
