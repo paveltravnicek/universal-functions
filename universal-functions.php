@@ -16,7 +16,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-09-02.1');
+define('SW_SHARED_VERSION', '2026-09-02.2');
 
 
 /** ------------------------------------------------
@@ -110,6 +110,8 @@ function sw_current_user_is_superadmin() {
  * stránek pak zůstane bez kanonické značky úplně a homepage vždycky, protože
  * tam ji jádro nevkládá ani samo.
  *
+ * Značka se vloží jen tehdy, když ji do <head> nedal už někdo jiný.
+ *
  * Vypnutí na konkrétním webu:  add_filter('sw_canonical_enabled', '__return_false');
  * Přepsání adresy:             add_filter('sw_canonical_url', function ($url) { ... });
  * ------------------------------------------------*/
@@ -185,21 +187,53 @@ function sw_get_canonical_url() {
 	return apply_filters('sw_canonical_url', $url);
 }
 
+/**
+ * Vložení značky do <head>.
+ *
+ * Zachytíme výstup wp_head do bufferu a značku doplníme, jen když ji tam
+ * nikdo jiný nedal. Dřívější test na has_action('wp_head', 'rel_canonical')
+ * poznal jen jádro WordPressu, ne SEO plugin, který jádru funkci odebere
+ * a vloží vlastní značku – na takovém webu pak vznikly značky dvě.
+ *
+ * Pokud buffer mezitím zavře jiný plugin, funkce raději neudělá nic,
+ * než aby rozbila výstup stránky.
+ */
 add_action('wp_head', function () {
 
 	if ( ! sw_canonical_is_enabled() ) {
 		return;
 	}
 
+	$GLOBALS['sw_canonical_ob_level'] = ob_get_level();
+	ob_start();
+
+}, 0);
+
+add_action('wp_head', function () {
+
+	if ( ! sw_canonical_is_enabled() || ! isset($GLOBALS['sw_canonical_ob_level']) ) {
+		return;
+	}
+
+	// Buffer už není náš – nesaháme na to
+	if ( ob_get_level() <= $GLOBALS['sw_canonical_ob_level'] ) {
+		unset($GLOBALS['sw_canonical_ob_level']);
+		return;
+	}
+
+	$head = ob_get_clean();
+	unset($GLOBALS['sw_canonical_ob_level']);
+
+	echo $head;
+
 	// Kde kanonická značka nedává smysl
 	if ( is_404() || is_search() || is_feed() || is_preview() ) {
 		return;
 	}
 
-	// Singulární stránky řeší jádro samo – pokud mu to plugin nevzal.
-	// Bez téhle podmínky by na takovém webu vznikly dvě značky,
-	// což je horší než žádná.
-	if ( is_singular() && has_action('wp_head', 'rel_canonical') ) {
+	// Značku už někdo vložil – jádro, SmartCrawl nebo cokoli jiného
+	if ( stripos($head, 'rel="canonical"') !== false
+	  || stripos($head, "rel='canonical'") !== false ) {
 		return;
 	}
 
@@ -209,7 +243,7 @@ add_action('wp_head', function () {
 		echo '<link rel="canonical" href="' . esc_url($url) . '">' . "\n";
 	}
 
-}, 99);
+}, 999);
 
 
 /** ------------------------------------------------
@@ -797,4 +831,4 @@ add_action('wp_head', function () {
 		sw_canonical_is_enabled() ? 'on' : 'off'
 	);
 
-}, 98);
+}, 1000);
