@@ -3,6 +3,7 @@
  * Shared functions.php (GitHub) – Smart Websites
  */
 
+define('SW_SHARED_VERSION', '2026-09-02.1');
 defined('ABSPATH') || exit;
 
 
@@ -755,3 +756,19 @@ add_action('admin_footer', function () {
 	</script>
 	<?php
 });
+
+/** Verze sdíleného souboru – vpravo dole v administraci */
+add_filter('update_footer', function () {
+	return 'SW shared: ' . SW_SHARED_VERSION;
+}, 20);
+
+/** Diagnostika ve zdrojovém kódu, jen pro přihlášeného správce */
+add_action('wp_head', function () {
+	if (!current_user_can('manage_options')) return;
+
+	printf(
+		"\n<!-- SW shared %s | canonical: %s -->\n",
+		esc_html(SW_SHARED_VERSION),
+		sw_canonical_is_enabled() ? 'zapnuto' : 'vypnuto (aktivní jiný SEO plugin)'
+	);
+}, 98);
