@@ -4,19 +4,22 @@
  * ------------------------------------------------
  * Verzi níž zvyš při každém pushi. Zobrazuje se v HTML komentáři
  * na konci souboru, takže na kterémkoli webu poznáš, co tam běží.
+ *
+ * POZOR: SW_SHARED_VERSION nově řídí i promazání Varnishe po nasazení.
+ * Když ji nezvýšíš, weby s Varnishem poběží na staré verzi až do
+ * vypršení TTL. Zvýšení verze je součást commitu, ne volitelný krok.
  * ------------------------------------------------
  * Změny oproti předchozí verzi:
- * - PŘIDÁNO: kanonické adresy (rel=canonical) – SmartCrawl je jádru odebírá a nedodává vlastní
- * - Login mask: slug se čte z Defenderu, fallback na seznam; ošetřen CSRF na auto-logout
- * - Ochrana pluginů: skutečná (server-side), ne skrývání odkazů JavaScriptem
- * - Polyfill str_ends_with přesunut na začátek souboru
- * - Oprava značky proti dvojímu vložení podpisu u textových e-mailů
+ * - PŘIDÁNO: doplnění chybějících purge událostí pro Varnish (Proxy Cache Purge)
+ *   – jakákoli editace obsahu promázne CELÝ web, ne jen editovanou URL
+ *   – pokryty i změny menu, widgetů a customizeru
+ *   – po nasazení nové SW_SHARED_VERSION se Varnish promázne sám
  * ------------------------------------------------
  */
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-09-02.2');
+define('SW_SHARED_VERSION', '2026-09-04.1');
 
 
 /** ------------------------------------------------
@@ -100,6 +103,113 @@ function sw_current_user_is_superadmin() {
 	$user = wp_get_current_user();
 	return $user && $user->exists() && in_array($user->user_login, sw_get_superadmin_logins(), true);
 }
+
+
+/** ------------------------------------------------
+ * VARNISH – doplnění chybějících purge událostí
+ * ------------------------------------------------
+ * BEZPEČNÉ NA WEBECH BEZ VARNISHE:
+ * Filtr 'varnish_http_purge_events' aplikuje výhradně plugin Proxy Cache
+ * Purge. Když plugin na webu není, filtr se nikdy nezavolá, akce
+ * 'sw_full_purge' vystřelí do prázdna a nic se nestane.
+ *
+ * PROČ TO TU JE:
+ * Proxy Cache Purge při uložení příspěvku promázne jen editovanou URL,
+ * titulku, přiřazené taxonomie a feedy. Všechny ostatní stránky, kde se
+ * změna projeví (sdílená patička, hlavička, LiveCanvas partial, šablona
+ * v Elementoru), zůstanou ve staré verzi až do vypršení TTL.
+ *
+ * Řešíme to nejjednodušším možným pravidlem: cokoli se uloží, promázne
+ * se celý web. Na desetistránkové prezentaci se cache postaví zpátky
+ * okamžitě a odpadá řešení, co který builder ukládá kam. Ověřeno v logu:
+ * LiveCanvas vystřelí save_post i pro typ 'lc_partial', takže úprava
+ * hlavičky i patičky je pokrytá.
+ *
+ * Vypnutí na konkrétním webu:
+ *   add_filter('sw_varnish_purge_enabled', '__return_false');
+ * ------------------------------------------------*/
+
+function sw_varnish_purge_is_enabled() {
+	return (bool) apply_filters('sw_varnish_purge_enabled', true);
+}
+
+/**
+ * 1) Registrace vlastních událostí pro plný purge.
+ *
+ * Události přidané tímhle filtrem nemají post ID, takže vyvolají purge
+ * celého webu – přesně to, co u sitewide změn chceme.
+ */
+add_filter('varnish_http_purge_events', function ($events) {
+
+	if (!sw_varnish_purge_is_enabled()) {
+		return $events;
+	}
+
+	$events[] = 'sw_full_purge';                  // vlastní: editace obsahu + deploy
+	$events[] = 'wp_update_nav_menu';             // změna menu ve Vzhledu
+	$events[] = 'update_option_sidebars_widgets'; // widgety
+	$events[] = 'customize_save_after';           // uložení customizeru
+
+	return $events;
+});
+
+/**
+ * 2) Plný purge při jakékoli editaci obsahu.
+ *
+ * Záměrně bez rozlišování typu obsahu – pokrývá Gutenberg, LiveCanvas,
+ * Elementor i vlastní typy příspěvků.
+ *
+ * Odfiltrované: autosave, revize a automatické koncepty. Bez toho by
+ * Elementor promazával cache každých pár vteřin během editace.
+ */
+add_action('save_post', function ($post_id, $post) {
+
+	if (!sw_varnish_purge_is_enabled()) {
+		return;
+	}
+
+	if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+		return;
+	}
+
+	if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) {
+		return;
+	}
+
+	if ('auto-draft' === $post->post_status) {
+		return;
+	}
+
+	do_action('sw_full_purge');
+
+}, 10, 2);
+
+/**
+ * 3) Purge po nasazení nové verze z GitHubu.
+ *
+ * Deploy souboru nevyvolá žádnou WordPress událost, takže by o změně
+ * Varnish nevěděl. Při prvním načtení stránky po pushi se uložená
+ * hodnota liší od SW_SHARED_VERSION, vystřelí se purge a hodnota se
+ * přepíše. Podruhé už se neděje nic.
+ *
+ * Zápis proběhne DŘÍV než purge – omezí duplicitní purge při souběžných
+ * požadavcích hned po nasazení.
+ */
+add_action('wp_loaded', function () {
+
+	if (!sw_varnish_purge_is_enabled()) {
+		return;
+	}
+
+	if (get_option('sw_shared_version_purged') === SW_SHARED_VERSION) {
+		return;
+	}
+
+	update_option('sw_shared_version_purged', SW_SHARED_VERSION, false);
+
+	do_action('sw_full_purge');
+
+}, 20);
 
 
 /** ------------------------------------------------
@@ -809,8 +919,8 @@ add_action('admin_footer', function () {
  * Verze a stav ve zdrojovém kódu – jen pro přihlášeného správce
  * ------------------------------------------------
  * Návštěvník ani nepřihlášený crawler tenhle komentář nikdy neuvidí.
- * Slouží k rychlé kontrole, jaká verze na webu běží a jestli se
- * kanonické adresy vůbec generují.
+ * Slouží k rychlé kontrole, jaká verze na webu běží, jestli se
+ * kanonické adresy generují a jestli je web napojený na Varnish.
  *
  * Patičku administrace (update_footer) přepisuje Branda Pro,
  * proto je verze tady a ne tam.
@@ -825,10 +935,11 @@ add_action('wp_head', function () {
 	$hash = is_array($meta) ? substr((string) ($meta['active_hash'] ?? ''), 0, 8) : '';
 
 	printf(
-		"\n<!-- SW shared %s | hash %s | canonical %s -->\n",
+		"\n<!-- SW shared %s | hash %s | canonical %s | varnish %s -->\n",
 		esc_html(SW_SHARED_VERSION),
 		esc_html($hash !== '' ? $hash : '?'),
-		sw_canonical_is_enabled() ? 'on' : 'off'
+		sw_canonical_is_enabled() ? 'on' : 'off',
+		class_exists('VarnishPurger') ? 'on' : 'off'
 	);
 
 }, 1000);
