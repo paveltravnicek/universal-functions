@@ -45,6 +45,7 @@ function sw_get_managed_domains() {
 		'smart-websites.cz',
 		'a2development.cz',
 		'aramtor.com',
+		'bezgreenwashingu.cz',
 		'busplanservis.cz',
 		'ciraa.eu',
 		'cirkularniakademie.cz',
