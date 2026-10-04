@@ -10,6 +10,11 @@
  * vypršení TTL. Zvýšení verze je součást commitu, ne volitelný krok.
  * ------------------------------------------------
  * Změny oproti předchozí verzi:
+ * - PŘIDÁNO: kontrola oprávnění – soubor se zeptá agenta, jestli na daném webu smí běžet.
+ *   Weby přesunuté na cizí hosting se odpojí. Dokud není v agentovi zapnuté vynucení,
+ *   nemění se nic; při nedostupnosti agenta funkce běží dál (odpověď se drží 12 hodin).
+ *
+ * Starší změny:
  * - PŘIDÁNO: doplnění chybějících purge událostí pro Varnish (Proxy Cache Purge)
  *   – jakákoli editace obsahu promázne CELÝ web, ne jen editovanou URL
  *   – pokryty i změny menu, widgetů a customizeru
@@ -19,7 +24,67 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-09-04.1');
+define('SW_SHARED_VERSION', '2026-10-03.1');
+
+/** ------------------------------------------------
+ * KONTROLA OPRÁVNĚNÍ – ptá se agenta, jestli na tomhle webu smí sdílené funkce běžet.
+ *
+ * Je schválně úplně nahoře a mimo všechny ostatní funkce: když web nárok nemá, soubor
+ * se dál vůbec nenačte a nic nedefinuje.
+ *
+ * Chování je ZÁMĚRNĚ opatrné – povoluje se vždy, když si nejsme jistí:
+ *   - agent neodpoví nebo vrátí nesmysl  -> funkce běží dál (zkusí se za hodinu),
+ *   - web agent nezná                    -> funkce běží dál,
+ *   - vynucení není v agentovi zapnuté   -> funkce běží dál i na cizím hostingu.
+ * Odpověď se drží 12 hodin, takže web nezávisí na dostupnosti agenta.
+ * ------------------------------------------------*/
+if (!function_exists('sw_shared_povoleno')) {
+	function sw_shared_povoleno() {
+		// Mimo WordPress nemáme kde držet odpověď – raději povolit.
+		if (!function_exists('get_transient') || !function_exists('wp_remote_get')) return true;
+
+		$cache = get_transient('sw_shared_povoleni');
+		if (is_array($cache) && array_key_exists('allow', $cache)) return (bool) $cache['allow'];
+
+		$host = '';
+		if (function_exists('home_url')) $host = (string) parse_url(home_url(), PHP_URL_HOST);
+		if ($host === '') $host = (string) (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '');
+		$host = strtolower(preg_replace('~^www\.~', '', $host));
+		if ($host === '') return true;
+
+		$res = wp_remote_get(
+			'https://agent.smart-websites.cz/?api=swlic/v2/shared&domain=' . rawurlencode($host),
+			array('timeout' => 5, 'redirection' => 2)
+		);
+
+		if (is_wp_error($res) || (int) wp_remote_retrieve_response_code($res) !== 200) {
+			set_transient('sw_shared_povoleni', array('allow' => true), HOUR_IN_SECONDS);
+			return true;
+		}
+
+		$data = json_decode((string) wp_remote_retrieve_body($res), true);
+		if (!is_array($data)) {
+			set_transient('sw_shared_povoleni', array('allow' => true), HOUR_IN_SECONDS);
+			return true;
+		}
+
+		$vynucuje = !empty($data['enforce']);
+		$povoleno = !empty($data['allow']) || !$vynucuje;
+
+		set_transient('sw_shared_povoleni', array('allow' => $povoleno), 12 * HOUR_IN_SECONDS);
+
+		if (!$povoleno && function_exists('update_option')) {
+			update_option('sw_shared_odpojeno_duvod', isset($data['reason']) ? (string) $data['reason'] : '', false);
+		}
+
+		return $povoleno;
+	}
+}
+
+if (!sw_shared_povoleno()) {
+	return;   // web na sdílené funkce nárok nemá – dál se nic nenačítá
+}
+
 
 
 /** ------------------------------------------------
