@@ -1,6 +1,6 @@
 <?php
 /**
- * Shared functions.php (GitHub) – Smart Websites
+ * Shared functions.php – Smart Websites
  * ------------------------------------------------
  * Verzi níž zvyš při každém pushi. Zobrazuje se v HTML komentáři
  * na konci souboru, takže na kterémkoli webu poznáš, co tam běží.
@@ -10,7 +10,17 @@
  * vypršení TTL. Zvýšení verze je součást commitu, ne volitelný krok.
  * ------------------------------------------------
  * Změny oproti předchozí verzi:
- * - PŘIDÁNO: kontrola oprávnění – soubor se zeptá agenta, jestli na daném webu smí běžet.
+ * - OPRAVENO: odpověď agenta se držela v transientu a až 12 hodin. Transient umí žít
+ *   v objektové cache, která se liší mezi stránkou, administrací a cronem – web se pak
+ *   podle toho, odkud se ptal, choval pokaždé jinak a k odpojení nedošlo, i když agent
+ *   odpovídal „ne". Nově se odpověď drží v option a platí HODINU.
+ * - PŘIDÁNO: po kontrole oprávnění zůstane STOPA. Správce loaderu ukazuje jen stažení
+ *   souboru z GitHubu, což se daří pořád – i na webu, kde se funkce vůbec nespouštějí.
+ *   Nově se výsledek kontroly ukládá do volby `sw_shared_stav` a přihlášený správce ho
+ *   vidí v HTML komentáři ve zdroji stránky (i na odpojeném webu).
+ *
+ * Starší změny:
+ * - kontrola oprávnění – soubor se zeptá agenta, jestli na daném webu smí běžet.
  *   Weby přesunuté na cizí hosting se odpojí. Dokud není v agentovi zapnuté vynucení,
  *   nemění se nic; při nedostupnosti agenta funkce běží dál (odpověď se drží 12 hodin).
  *
@@ -24,7 +34,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-10-03.1');
+define('SW_SHARED_VERSION', '2026-10-08.1');
 
 /** ------------------------------------------------
  * KONTROLA OPRÁVNĚNÍ – ptá se agenta, jestli na tomhle webu smí sdílené funkce běžet.
@@ -36,15 +46,28 @@ define('SW_SHARED_VERSION', '2026-10-03.1');
  *   - agent neodpoví nebo vrátí nesmysl  -> funkce běží dál (zkusí se za hodinu),
  *   - web agent nezná                    -> funkce běží dál,
  *   - vynucení není v agentovi zapnuté   -> funkce běží dál i na cizím hostingu.
- * Odpověď se drží 12 hodin, takže web nezávisí na dostupnosti agenta.
+ * Odpověď se drží HODINU, takže web nezávisí na dostupnosti agenta – a zároveň se změna
+ * projeví nejpozději do hodiny, ne až za půl dne.
+ *
+ * Odpověď se drží v OPTION, ne v transientu. Transient umí žít v objektové cache, která
+ * se liší mezi běžným načtením stránky, administrací a cronem – web se pak podle toho,
+ * odkud se zrovna ptal, choval pokaždé jinak a odpojení nenastalo, i když agent odpovídal
+ * „ne". Option je v databázi jedna.
  * ------------------------------------------------*/
 if (!function_exists('sw_shared_povoleno')) {
 	function sw_shared_povoleno() {
 		// Mimo WordPress nemáme kde držet odpověď – raději povolit.
-		if (!function_exists('get_transient') || !function_exists('wp_remote_get')) return true;
+		if (!function_exists('get_option') || !function_exists('wp_remote_get')) return true;
 
-		$cache = get_transient('sw_shared_povoleni');
-		if (is_array($cache) && array_key_exists('allow', $cache)) return (bool) $cache['allow'];
+		// Jak dlouho platí poslední odpověď. Delší doba znamená, že web po přesunu jede
+		// na sdílených funkcích dál – a to je přesně to, co se má přestat dít.
+		$platnost = 3600;
+
+		$stav = get_option('sw_shared_stav', array());
+		if (is_array($stav) && isset($stav['povoleno']) && !empty($stav['ts'])
+			&& (time() - (int) $stav['ts']) < $platnost) {
+			return (bool) $stav['povoleno'];
+		}
 
 		$host = '';
 		if (function_exists('home_url')) $host = (string) parse_url(home_url(), PHP_URL_HOST);
@@ -58,30 +81,70 @@ if (!function_exists('sw_shared_povoleno')) {
 		);
 
 		if (is_wp_error($res) || (int) wp_remote_retrieve_response_code($res) !== 200) {
-			set_transient('sw_shared_povoleni', array('allow' => true), HOUR_IN_SECONDS);
+			sw_shared_zapis_stav(true, 'agent neodpověděl – funkce běží dál', false);
 			return true;
 		}
 
 		$data = json_decode((string) wp_remote_retrieve_body($res), true);
 		if (!is_array($data)) {
-			set_transient('sw_shared_povoleni', array('allow' => true), HOUR_IN_SECONDS);
+			sw_shared_zapis_stav(true, 'agent vrátil neočekávanou odpověď – funkce běží dál', false);
 			return true;
 		}
 
 		$vynucuje = !empty($data['enforce']);
 		$povoleno = !empty($data['allow']) || !$vynucuje;
+		$duvod    = isset($data['reason']) ? (string) $data['reason'] : '';
 
-		set_transient('sw_shared_povoleni', array('allow' => $povoleno), 12 * HOUR_IN_SECONDS);
+		sw_shared_zapis_stav($povoleno, $duvod, $vynucuje);
+
+		// Zbytek po starší verzi: odpověď se držela tady a přebíjela to, co řekl agent.
+		if (function_exists('delete_transient')) delete_transient('sw_shared_povoleni');
 
 		if (!$povoleno && function_exists('update_option')) {
-			update_option('sw_shared_odpojeno_duvod', isset($data['reason']) ? (string) $data['reason'] : '', false);
+			update_option('sw_shared_odpojeno_duvod', $duvod, false);
 		}
 
 		return $povoleno;
 	}
 }
 
+/**
+ * Zapíše výsledek poslední kontroly oprávnění.
+ *
+ * Proč: správce loaderu vidí jen to, že se SOUBOR stáhl z GitHubu – a to se daří pořád,
+ * i když se funkce na webu vůbec nespouští. Kontrola oprávnění je něco jiného: probíhá
+ * až při načtení stránky, uvnitř tohohle souboru. Bez záznamu po ní nezůstane žádná stopa.
+ */
+if (!function_exists('sw_shared_zapis_stav')) {
+	function sw_shared_zapis_stav($povoleno, $duvod, $vynucuje) {
+		if (!function_exists('update_option')) return;
+		update_option('sw_shared_stav', array(
+			'cas'      => current_time('mysql'),
+			'ts'       => time(),
+			'povoleno' => (bool) $povoleno,
+			'vynucuje' => (bool) $vynucuje,
+			'duvod'    => (string) $duvod,
+			'verze'    => SW_SHARED_VERSION,
+		), false);
+	}
+}
+
 if (!sw_shared_povoleno()) {
+	// Web nárok nemá – soubor se dál nenačte a nic nedefinuje. Aby to nebylo poznat jen
+	// podle TOHO, ŽE NĚCO CHYBÍ, nechá tu po sobě přihlášenému správci zprávu v HTML.
+	if (function_exists('add_action')) {
+		add_action('wp_head', function () {
+			if (function_exists('current_user_can') && !current_user_can('manage_options')) return;
+			$st = function_exists('get_option') ? get_option('sw_shared_stav', array()) : array();
+			$duvod = is_array($st) && !empty($st['duvod']) ? (string) $st['duvod'] : 'bez udání důvodu';
+			$cas   = is_array($st) && !empty($st['cas']) ? (string) $st['cas'] : '?';
+			printf(
+				"\n<!-- SW shared ODPOJENO: %s | zjištěno %s | sdílené funkce se na tomhle webu nenačítají -->\n",
+				esc_html($duvod),
+				esc_html($cas)
+			);
+		}, 1000);
+	}
 	return;   // web na sdílené funkce nárok nemá – dál se nic nenačítá
 }
 
@@ -1000,12 +1063,23 @@ add_action('wp_head', function () {
 	$meta = get_option('swsfl_meta', []);
 	$hash = is_array($meta) ? substr((string) ($meta['active_hash'] ?? ''), 0, 8) : '';
 
+	// Stav oprávnění patří do stejného komentáře – ať je na jedno kouknutí vidět,
+	// jestli funkce běží se souhlasem agenta, nebo jen proto, že agent neodpověděl.
+	$stav = get_option('sw_shared_stav', array());
+	$opravneni = 'nezjištěno';
+	if (is_array($stav) && isset($stav['povoleno'])) {
+		$opravneni = (!empty($stav['povoleno']) ? 'povoleno' : 'ODPOJENO')
+			. ' (' . (string) ($stav['cas'] ?? '?') . ')'
+			. (!empty($stav['duvod']) ? ' – ' . (string) $stav['duvod'] : '');
+	}
+
 	printf(
-		"\n<!-- SW shared %s | hash %s | canonical %s | varnish %s -->\n",
+		"\n<!-- SW shared %s | hash %s | canonical %s | varnish %s | oprávnění %s -->\n",
 		esc_html(SW_SHARED_VERSION),
 		esc_html($hash !== '' ? $hash : '?'),
 		sw_canonical_is_enabled() ? 'on' : 'off',
-		class_exists('VarnishPurger') ? 'on' : 'off'
+		class_exists('VarnishPurger') ? 'on' : 'off',
+		esc_html($opravneni)
 	);
 
 }, 1000);
