@@ -10,6 +10,13 @@
  * vypršení TTL. Zvýšení verze je součást commitu, ne volitelný krok.
  * ------------------------------------------------
  * Změny oproti předchozí verzi:
+ * - PŘIDÁNO: skrytí uživatelských jmen před nepřihlášenými návštěvníky.
+ *   Automatické skenery (a „bezpečnostní audity" posílané klientům) hlásí, že WordPress
+ *   veřejně vypisuje uživatele. Bezpečnostní přínos je malý, ale odpadne vysvětlování.
+ *   Zavírá se: REST /wp/v2/users, enumerace přes ?author=N, uživatelská sitemapa
+ *   a autor v oEmbed odpovědi. Přihlášený uživatel (Gutenberg, admin) nic nepozná.
+ *
+ * Starší změny:
  * - OPRAVENO: odpověď agenta se držela v transientu a až 12 hodin. Transient umí žít
  *   v objektové cache, která se liší mezi stránkou, administrací a cronem – web se pak
  *   podle toho, odkud se ptal, choval pokaždé jinak a k odpojení nedošlo, i když agent
@@ -34,7 +41,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-10-08.1');
+define('SW_SHARED_VERSION', '2026-11-03.1');
 
 /** ------------------------------------------------
  * KONTROLA OPRÁVNĚNÍ – ptá se agenta, jestli na tomhle webu smí sdílené funkce běžet.
@@ -483,6 +490,100 @@ add_action('wp_head', function () {
 	}
 
 }, 999);
+
+
+/** ------------------------------------------------
+ * SKRYTÍ UŽIVATELSKÝCH JMEN před nepřihlášenými
+ * ------------------------------------------------
+ * Proč to tu je: WordPress v základu prozradí slug uživatele (často shodný
+ * s loginem) několika cestami. Skenery i různé „bezpečnostní audity", které
+ * pak klienti přeposílají, to hlásí jako nález. Skutečná ochrana proti
+ * hádání hesel je jinde (Defender, maska loginu, silná hesla) – tohle jen
+ * zavírá dveře, aby odpadlo vysvětlování.
+ *
+ * Zavírá se:
+ *   1) REST API /wp/v2/users (výpis i detail podle ID),
+ *   2) enumerace přes ?author=N (jinak WP přesměruje na /author/slug/),
+ *   3) uživatelská sitemapa jádra (wp-sitemap-users-1.xml),
+ *   4) jméno a odkaz autora v oEmbed odpovědi.
+ *
+ * Přihlášený uživatel nic nepozná – Gutenberg endpoint uživatelů potřebuje
+ * (výběr autora apod.), proto se skrývá jen nepřihlášeným.
+ *
+ * Autorské archivy (/author/slug/) zůstávají funkční – kdo slug nezná,
+ * nemá se k němu odkud dostat. Šablony, které jméno autora odkazují,
+ * tím nerozbijeme.
+ *
+ * Vypnutí na konkrétním webu:
+ *   add_filter('sw_hide_users_enabled', '__return_false');
+ * ------------------------------------------------*/
+
+function sw_hide_users_is_enabled() {
+	return (bool) apply_filters('sw_hide_users_enabled', true);
+}
+
+/**
+ * 1) REST API – endpoint uživatelů pro nepřihlášené neexistuje.
+ *
+ * Filtr běží až po ověření požadavku, takže přihlášení přes cookie
+ * s nonce (Gutenberg) i aplikační hesla fungují normálně. Bez nonce
+ * WordPress REST požadavek bere jako nepřihlášený – a to chceme.
+ * Zmizí to i z indexu /wp-json/.
+ */
+add_filter('rest_endpoints', function ($endpoints) {
+
+	if (!sw_hide_users_is_enabled() || is_user_logged_in()) {
+		return $endpoints;
+	}
+
+	foreach (array_keys($endpoints) as $route) {
+		if (strpos($route, '/wp/v2/users') === 0) {
+			unset($endpoints[$route]);
+		}
+	}
+
+	return $endpoints;
+});
+
+/**
+ * 2) Enumerace přes ?author=N.
+ *
+ * Priorita 1 je nutná: redirect_canonical() běží na prioritě 10 a stihl by
+ * návštěvníka přesměrovat na /author/slug/ dřív – tedy slug prozradit.
+ */
+add_action('template_redirect', function () {
+
+	if (!sw_hide_users_is_enabled() || is_user_logged_in()) {
+		return;
+	}
+
+	if (isset($_GET['author'])) {
+		wp_safe_redirect(home_url('/'), 301);
+		exit;
+	}
+
+}, 1);
+
+/** 3) Uživatelská sitemapa jádra. Sitemapy SEO pluginů tím nejsou dotčené. */
+add_filter('wp_sitemaps_add_provider', function ($provider, $name) {
+
+	if ($name === 'users' && sw_hide_users_is_enabled()) {
+		return false;
+	}
+
+	return $provider;
+
+}, 10, 2);
+
+/** 4) oEmbed – author_url obsahuje odkaz na /author/slug/. */
+add_filter('oembed_response_data', function ($data) {
+
+	if (sw_hide_users_is_enabled()) {
+		unset($data['author_name'], $data['author_url']);
+	}
+
+	return $data;
+});
 
 
 /** ------------------------------------------------
