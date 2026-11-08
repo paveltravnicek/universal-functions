@@ -41,7 +41,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-11-03.1');
+define('SW_SHARED_VERSION', '2026-11-08.1');
 
 /** ------------------------------------------------
  * KONTROLA OPRÁVNĚNÍ – ptá se agenta, jestli na tomhle webu smí sdílené funkce běžet.
