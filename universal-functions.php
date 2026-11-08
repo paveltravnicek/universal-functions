@@ -193,6 +193,7 @@ function sw_get_managed_domains() {
 		'katerinabakulova.cz',
 		'koeltechniek.cz',
 		'localdisti.cz',
+		'marcelindra.cz',
 		'megasrot.cz',
 		'oldtimersebek.cz',
 		'orangespa.cz',
