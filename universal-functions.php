@@ -200,6 +200,7 @@ function sw_get_managed_domains() {
 		'podlahy-mareon.cz',
 		'podovi-mareon.hr',
 		'privacychoices.eu',
+		'severplus.cz',
 		'spolecne-udrzitelne.cz',
 		'vitalplan.cz',
 		'zamecnikvpraze.cz',
