@@ -10,6 +10,10 @@
  * vypršení TTL. Zvýšení verze je součást commitu, ne volitelný krok.
  * ------------------------------------------------
  * Změny oproti předchozí verzi:
+ * - ZMĚNĚNO: seznam domén se Správou webu už není ručně v tomhle souboru. Rozhoduje Agent
+ *   (tarif v ceníku) a posílá to v odpovědi na kontrolu oprávnění, která se tak jako tak
+ *   dělá jednou za hodinu – žádný dotaz navíc. Když Agent zrovna neodpoví, platí poslední
+ *   známá odpověď. Řídí se tím upozornění na aktualizace na Nástěnce a chat v administraci.
  * - ZMĚNĚNO: v administraci webů se Správou webu je místo Zoho Desk ASAP chatbot
  *   Smart Websites ze SW Agenta. Odpovídá ze znalostní báze Smart Websites, co neví,
  *   předá technické podpoře. Agent pozná, ze kterého webu se klient ptá (podle adresy),
@@ -48,7 +52,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-11-25.1');
+define('SW_SHARED_VERSION', '2026-11-25.2');
 
 /** ------------------------------------------------
  * KONTROLA OPRÁVNĚNÍ – ptá se agenta, jestli na tomhle webu smí sdílené funkce běžet.
@@ -78,7 +82,10 @@ if (!function_exists('sw_shared_povoleno')) {
 		$platnost = 3600;
 
 		$stav = get_option('sw_shared_stav', array());
+		// Záznam bez údaje o Správě webu je ze starší verze souboru – po nasazení se
+		// jednou zeptáme hned, ať upozornění a chat nečekají hodinu.
 		if (is_array($stav) && isset($stav['povoleno']) && !empty($stav['ts'])
+			&& array_key_exists('sprava', $stav)
 			&& (time() - (int) $stav['ts']) < $platnost) {
 			return (bool) $stav['povoleno'];
 		}
@@ -95,13 +102,13 @@ if (!function_exists('sw_shared_povoleno')) {
 		);
 
 		if (is_wp_error($res) || (int) wp_remote_retrieve_response_code($res) !== 200) {
-			sw_shared_zapis_stav(true, 'agent neodpověděl – funkce běží dál', false);
+			sw_shared_zapis_stav(true, 'agent neodpověděl – funkce běží dál', false, null);
 			return true;
 		}
 
 		$data = json_decode((string) wp_remote_retrieve_body($res), true);
 		if (!is_array($data)) {
-			sw_shared_zapis_stav(true, 'agent vrátil neočekávanou odpověď – funkce běží dál', false);
+			sw_shared_zapis_stav(true, 'agent vrátil neočekávanou odpověď – funkce běží dál', false, null);
 			return true;
 		}
 
@@ -109,7 +116,10 @@ if (!function_exists('sw_shared_povoleno')) {
 		$povoleno = !empty($data['allow']) || !$vynucuje;
 		$duvod    = isset($data['reason']) ? (string) $data['reason'] : '';
 
-		sw_shared_zapis_stav($povoleno, $duvod, $vynucuje);
+		// Správa webu: starší Agent tenhle údaj neposílá – pak platí poslední známý.
+		$sprava = array_key_exists('sprava', $data) ? !empty($data['sprava']) : null;
+
+		sw_shared_zapis_stav($povoleno, $duvod, $vynucuje, $sprava);
 
 		// Zbytek po starší verzi: odpověď se držela tady a přebíjela to, co řekl agent.
 		if (function_exists('delete_transient')) delete_transient('sw_shared_povoleni');
@@ -130,9 +140,15 @@ if (!function_exists('sw_shared_povoleno')) {
  * až při načtení stránky, uvnitř tohohle souboru. Bez záznamu po ní nezůstane žádná stopa.
  */
 if (!function_exists('sw_shared_zapis_stav')) {
-	function sw_shared_zapis_stav($povoleno, $duvod, $vynucuje) {
+	function sw_shared_zapis_stav($povoleno, $duvod, $vynucuje, $sprava = null) {
 		if (!function_exists('update_option')) return;
+		// Bez odpovědi o Správě webu (agent neodpověděl) se drží poslední známá hodnota.
+		if ($sprava === null) {
+			$puvodni = get_option('sw_shared_stav', array());
+			if (is_array($puvodni) && array_key_exists('sprava', $puvodni)) $sprava = $puvodni['sprava'];
+		}
 		update_option('sw_shared_stav', array(
+			'sprava'   => $sprava === null ? null : (bool) $sprava,
 			'cas'      => current_time('mysql'),
 			'ts'       => time(),
 			'povoleno' => (bool) $povoleno,
@@ -166,7 +182,7 @@ if (!sw_shared_povoleno()) {
 
 /** ------------------------------------------------
  * Helper: str_ends_with pro starší PHP
- * MUSÍ být před prvním použitím v sw_domain_is_managed()
+ * (necháno pro ostatní kód – sw_domain_is_managed() už ho nepotřebuje)
  * ------------------------------------------------*/
 if (!function_exists('str_ends_with')) {
 	function str_ends_with($haystack, $needle) {
@@ -181,38 +197,28 @@ if (!function_exists('str_ends_with')) {
  * KONFIGURACE
  * ------------------------------------------------*/
 
-/** Domény se službou Správa webu (ostatní mají jen webhosting). */
+/**
+ * Má tenhle web službu Správa webu? Rozhoduje Agent (tarif v ceníku) – posílá to v odpovědi
+ * na kontrolu oprávnění (sw_shared_povoleno), která běží jednou za hodinu. Dřív tu byl ručně
+ * psaný seznam domén, který se musel držet stejný jako v Agentovi.
+ *
+ * Vrací true / false, nebo null, když to zatím nevíme (Agent ještě neodpověděl).
+ */
+function sw_web_ma_spravu() {
+	$stav = get_option('sw_shared_stav', array());
+	if (!is_array($stav) || !array_key_exists('sprava', $stav) || $stav['sprava'] === null) return null;
+	return (bool) $stav['sprava'];
+}
+
+/**
+ * Kvůli zpětné kompatibilitě (kdyby to volal jiný kód): doména tohohle webu, když má Správu
+ * webu, jinak prázdné pole. Ručně psaný seznam už neexistuje.
+ */
 function sw_get_managed_domains() {
-	return [
-		'smart-websites.cz',
-		'a2development.cz',
-		'aramtor.com',
-		'bezgreenwashingu.cz',
-		'busplanservis.cz',
-		'ciraa.eu',
-		'cirkularniakademie.cz',
-		'crystaldent.cz',
-		'daliborsitavanc.cz',
-		'dispecer.cz',
-		'fyziologickytrenink.cz',
-		'guide-jana-zemanova.com',
-		'jbbabylon.cz',
-		'katerinabakulova.cz',
-		'koeltechniek.cz',
-		'localdisti.cz',
-		'marcelindra.cz',
-		'megasrot.cz',
-		'oldtimersebek.cz',
-		'orangespa.cz',
-		'podlahy-mareon.cz',
-		'podovi-mareon.hr',
-		'privacychoices.eu',
-		'severplus.cz',
-		'spolecne-udrzitelne.cz',
-		'vitalplan.cz',
-		'zamecnikvpraze.cz',
-		'zzstar.cz',
-	];
+	if (sw_web_ma_spravu() !== true) return [];
+	$host = function_exists('home_url') ? (string) parse_url(home_url(), PHP_URL_HOST) : '';
+	$host = strtolower(preg_replace('~^www\.~', '', $host));
+	return $host !== '' ? [$host] : [];
 }
 
 /** Uživatelé s plným přístupem (ochrana účtu, skryté pluginy, skrytá média). */
@@ -230,17 +236,13 @@ function sw_get_protected_plugin_names() {
 	return ['Branda Pro', 'Defender Pro'];
 }
 
-/** True, pokud host je v seznamu spravovaných domén (bere v potaz i subdomény). */
-function sw_domain_is_managed($host) {
-	$host = strtolower(wp_unslash($host ?? ''));
-	if ($host === '') return false;
-
-	foreach (sw_get_managed_domains() as $suffix) {
-		if ($host === $suffix || str_ends_with($host, '.' . $suffix)) {
-			return true;
-		}
-	}
-	return false;
+/**
+ * True, pokud má web Správu webu. Parametr $host zůstává kvůli starším voláním – o webu
+ * rozhoduje Agent podle jeho domény, ne podle toho, jakou adresou se na web přišlo.
+ * Když to zatím nevíme, vrací false (volající, kterým na tom záleží, se ptají sw_web_ma_spravu()).
+ */
+function sw_domain_is_managed($host = null) {
+	return sw_web_ma_spravu() === true;
 }
 
 /** True, pokud je přihlášený uživatel na seznamu superadminů. */
@@ -901,7 +903,12 @@ add_action('admin_notices', function () {
 	}
 	if (!$updates_needed) return;
 
-	if (!sw_domain_is_managed($_SERVER['HTTP_HOST'] ?? '')) {
+	// Dokud Agent neřekl, jestli má web Správu webu, neukazujeme ani jednu variantu –
+	// klient se Správou webu nesmí dostat nabídku, ať si ji objedná.
+	$ma_spravu = sw_web_ma_spravu();
+	if ($ma_spravu === null) return;
+
+	if (!$ma_spravu) {
 		?>
 		<div class="notice notice-warning" style="border-left-color:#AF2279;padding:16px 20px;">
 			<h2 style="margin:0 0 12px;font-size:18px;line-height:1.4;">Váš web čekají důležité aktualizace</h2>
@@ -1119,10 +1126,8 @@ add_action('admin_menu', function () {
  * Nahrazuje Zoho Desk ASAP. Widget se načítá ze SW Agenta a žije ve vlastním
  * shadow DOM, takže mu styly administrace nic nerozbijí a on nerozbije administraci.
  *
- * Agent chat z tohohle webu pustí sám – podle toho, že doména má v Agentovi službu
- * Správa webu (tarif v ceníku). Seznam sw_get_managed_domains() je tedy jen první
- * síto: když na něm doména je, ale v Agentovi Správu webu nemá, widget se ukáže,
- * ale odmítne se spojit. Oba seznamy je potřeba držet stejné.
+ * Jestli má web Správu webu, rozhoduje Agent (tarif v ceníku) – stejný údaj použije
+ * i sám Agent, když rozhoduje, jestli chat z tohohle webu pustí. Nic se nedrží na dvou místech.
  *
  * Jméno a e-mail přihlášeného uživatele se předají jen kvůli pohodlí – bot se na ně
  * nemusí ptát a formulář je má předvyplněné. Agent je bere jako neověřené.
@@ -1136,7 +1141,7 @@ add_action('admin_menu', function () {
 add_action('admin_footer', function () {
 
 	if (!is_admin()) return;
-	if (!sw_domain_is_managed($_SERVER['HTTP_HOST'] ?? '')) return;
+	if (sw_web_ma_spravu() !== true) return;
 	if (!apply_filters('sw_chat_enabled', true)) return;
 
 	$user = wp_get_current_user();
