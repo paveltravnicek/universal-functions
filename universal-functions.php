@@ -10,6 +10,13 @@
  * vypršení TTL. Zvýšení verze je součást commitu, ne volitelný krok.
  * ------------------------------------------------
  * Změny oproti předchozí verzi:
+ * - ZMĚNĚNO: v administraci webů se Správou webu je místo Zoho Desk ASAP chatbot
+ *   Smart Websites ze SW Agenta. Odpovídá ze znalostní báze Smart Websites, co neví,
+ *   předá technické podpoře. Agent pozná, ze kterého webu se klient ptá (podle adresy),
+ *   a dotaz je rovnou svázaný s webem a klientem. Jméno a e-mail přihlášeného uživatele
+ *   se předvyplní – nic se tím neověřuje. Vypnutí: add_filter('sw_chat_enabled', '__return_false');
+ *
+ * Starší změny:
  * - PŘIDÁNO: skrytí uživatelských jmen před nepřihlášenými návštěvníky.
  *   Automatické skenery (a „bezpečnostní audity" posílané klientům) hlásí, že WordPress
  *   veřejně vypisuje uživatele. Bezpečnostní přínos je malý, ale odpadne vysvětlování.
@@ -41,7 +48,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SW_SHARED_VERSION', '2026-11-08.1');
+define('SW_SHARED_VERSION', '2026-11-25.1');
 
 /** ------------------------------------------------
  * KONTROLA OPRÁVNĚNÍ – ptá se agenta, jestli na tomhle webu smí sdílené funkce běžet.
@@ -1107,43 +1114,61 @@ add_action('admin_menu', function () {
 
 
 /** ------------------------------------------------
- * Zoho Desk ASAP – jen na doménách se Správou webu
+ * Chatbot Smart Websites – jen v administraci domén se Správou webu
+ * ------------------------------------------------
+ * Nahrazuje Zoho Desk ASAP. Widget se načítá ze SW Agenta a žije ve vlastním
+ * shadow DOM, takže mu styly administrace nic nerozbijí a on nerozbije administraci.
+ *
+ * Agent chat z tohohle webu pustí sám – podle toho, že doména má v Agentovi službu
+ * Správa webu (tarif v ceníku). Seznam sw_get_managed_domains() je tedy jen první
+ * síto: když na něm doména je, ale v Agentovi Správu webu nemá, widget se ukáže,
+ * ale odmítne se spojit. Oba seznamy je potřeba držet stejné.
+ *
+ * Jméno a e-mail přihlášeného uživatele se předají jen kvůli pohodlí – bot se na ně
+ * nemusí ptát a formulář je má předvyplněné. Agent je bere jako neověřené.
+ *
+ * Má-li web Content-Security-Policy, nonce se vezme z SW_CHAT_NONCE (nebo z původní
+ * SW_ZOHO_NONCE) a adresa agent.smart-websites.cz musí být v script-src i connect-src.
+ *
+ * Vypnutí na konkrétním webu:
+ *   add_filter('sw_chat_enabled', '__return_false');
  * ------------------------------------------------*/
 add_action('admin_footer', function () {
 
 	if (!is_admin()) return;
 	if (!sw_domain_is_managed($_SERVER['HTTP_HOST'] ?? '')) return;
+	if (!apply_filters('sw_chat_enabled', true)) return;
 
-	?>
-	<script type="text/javascript" id="zohodeskasap">
-		(function () {
-			var d = document;
-			var s = d.createElement("script");
-			s.type = "text/javascript";
-			s.id = "zohodeskasapscript";
-			s.defer = true;
+	$user = wp_get_current_user();
+	if (!$user || !$user->exists()) return;
 
-			<?php if (defined('SW_ZOHO_NONCE') && SW_ZOHO_NONCE) : ?>
-			s.nonce = "<?php echo esc_js(SW_ZOHO_NONCE); ?>";
-			<?php endif; ?>
+	$jmeno = trim($user->first_name . ' ' . $user->last_name);
+	if ($jmeno === '') $jmeno = (string) $user->display_name;
 
-			s.src = "https://desk.zoho.eu/portal/api/web/asapApp/197085000000339427?orgId=20105462640";
-			var t = d.getElementsByTagName("script")[0];
-			t.parentNode.insertBefore(s, t);
+	$kontakt = array(
+		'jmeno' => $jmeno,
+		'email' => is_email($user->user_email) ? (string) $user->user_email : '',
+	);
 
-			window.ZohoDeskAsapReady = function (callback) {
-				var queue = window.ZohoDeskAsap__asyncalls = window.ZohoDeskAsap__asyncalls || [];
-				if (window.ZohoDeskAsapReadyStatus) {
-					if (callback) queue.push(callback);
-					queue.forEach(function (fn) { if (fn) fn(); });
-					window.ZohoDeskAsap__asyncalls = null;
-				} else if (callback) {
-					queue.push(callback);
-				}
-			};
-		})();
-	</script>
-	<?php
+	$nonce = '';
+	if (defined('SW_CHAT_NONCE') && SW_CHAT_NONCE) {
+		$nonce = (string) SW_CHAT_NONCE;
+	} elseif (defined('SW_ZOHO_NONCE') && SW_ZOHO_NONCE) {
+		$nonce = (string) SW_ZOHO_NONCE;
+	}
+	$nonce_attr = $nonce !== '' ? ' nonce="' . esc_attr($nonce) . '"' : '';
+
+	// JSON_HEX_TAG: jméno uživatele nesmí umět zavřít <script>
+	printf(
+		"<script id=\"sw-chat-kontakt\"%s>window.SWChatKontakt = %s;</script>\n",
+		$nonce_attr,
+		wp_json_encode($kontakt, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE)
+	);
+	printf(
+		"<script id=\"sw-chat\" src=\"%s\" defer%s></script>\n",
+		esc_url('https://agent.smart-websites.cz/mcp/chat/widget.js'),
+		$nonce_attr
+	);
 });
 
 
